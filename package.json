@@ -7,6 +7,8 @@
     "doc": "docs"
   },
   "scripts": {
+    "test:knowledge-metadata": "node runtime/test-knowledge-metadata.js",
+    "test:knowledge-registry": "node --test runtime/test-knowledge-registry.js",
     "test": "node --test runtime/test-wiki-tree-tool.js runtime/test-wiki-subtree-tool.js runtime/test-wiki-tree-mcp.js runtime/test-wiki-search.js",
     "test:wiki-subtree": "node --test runtime/test-wiki-subtree-tool.js",
     "test:wiki-subtree:mcp": "node --test runtime/test-wiki-tree-mcp.js",
