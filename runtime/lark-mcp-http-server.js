@@ -1,4 +1,5 @@
 const { registerWikiSearchTools } = require("./register-wiki-search-tools");
+const { registerKnowledgeTools } = require("./register-knowledge-tools");
 require("dotenv").config();
 const { registerWikiTreeTool } = require("./register-wiki-tree-tool");
 const { registerWikiSubtreeTool } = require("./register-wiki-subtree-tool");
@@ -196,6 +197,7 @@ function createMcpServer() {
   registerWikiTreeTool(server);
   registerWikiSubtreeTool(server);
   registerWikiSearchTools(server);
+  registerKnowledgeTools(server);
   return server;
 }
 
