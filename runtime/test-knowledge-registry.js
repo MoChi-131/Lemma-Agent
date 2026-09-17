@@ -106,6 +106,7 @@ test('external retrieval eligibility comes from the separate whitelist table', a
 test('Schema Freeze v1.0 retrieval gate applies completeness, scope, status, authority, and whitelist', async () => {
   const records = [
     ['kb-approved', 'Knowledge Base', 'Guide', 'Approved', 'Internal Official'],
+    ['kb-reference', 'Knowledge Base', 'Guide', 'Approved', 'Reference'],
     ['kb-draft', 'Knowledge Base', 'Guide', 'Draft', 'Internal Official'],
     ['kb-unverified', 'Knowledge Base', 'Guide', 'Approved', 'Unverified'],
     ['workspace', 'Workspace', 'Meeting Notes', null, null],
@@ -142,6 +143,7 @@ test('Schema Freeze v1.0 retrieval gate applies completeness, scope, status, aut
   const byId = Object.fromEntries(result.documents.map(doc => [doc.record_id, doc]));
 
   assert.equal(byId['kb-approved'].retrieval_eligible, true);
+  assert.equal(byId['kb-reference'].retrieval_eligible, true);
   assert.equal(byId['kb-draft'].retrieval_eligible, false);
   assert.equal(byId['kb-unverified'].retrieval_eligible, false);
   assert.equal(byId.workspace.retrieval_eligible, false);
@@ -156,6 +158,7 @@ test('domain matching accepts real subdomains and rejects lookalike domains', ()
   assert.equal(domainMatches('hos.housingauthority.gov.hk', 'housingauthority.gov.hk'), true);
   assert.equal(domainMatches('housingauthority.gov.hk', 'housingauthority.gov.hk'), true);
   assert.equal(domainMatches('fakehousingauthority.gov.hk', 'housingauthority.gov.hk'), false);
+  assert.equal(domainMatches('housingauthority.gov.hk.fake-site.com', 'housingauthority.gov.hk'), false);
   assert.equal(domainMatches('housingauthority.gov.hk.example.com', 'housingauthority.gov.hk'), false);
 });
 test('Suspended is a valid whitelist status but blocks external retrieval', async () => {

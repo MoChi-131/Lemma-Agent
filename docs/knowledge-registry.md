@@ -174,6 +174,7 @@ Both tools declare read-only, non-destructive, idempotent annotations. The metad
 - Optional approval and project dates are normalized to `YYYY-MM-DD` when present.
 - External Reference `source_domain`, `whitelist_status`, and eligibility are derived from the document URL and separate whitelist table.
 - An approved parent domain also approves its real subdomains. For example, `housingauthority.gov.hk` matches `hos.housingauthority.gov.hk`, but not `fakehousingauthority.gov.hk`.
+- Keep whitelist domains as specific as the business requirement allows. Do not approve a broad parent domain when only one service subdomain is required.
 - The validator does not confirm that Approved By is one of the authorized approvers.
 - Base native field types and reference-option conditions are not proved by record values alone.
 
