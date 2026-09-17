@@ -11,28 +11,30 @@ Scope: Knowledge Registry metadata retrieval, validation, whitelist checks, and 
 | Measure | Result |
 | --- | ---: |
 | Total records | 13 |
-| Valid records | 8 |
-| Intentionally invalid records | 5 |
-| Records with warnings | 2 |
+| Valid records | 10 |
+| Invalid records | 3 |
+| Records with warnings | 0 |
 | Registry unit tests | 17 passed, 0 failed |
+| Existing Wiki regression tests | 40 passed, 0 failed |
 | MCP acceptance | PASS |
 
-Invalid records are retained as negative-test evidence. A negative test passes when the validator rejects the record and explains the correction.
+Invalid records are retained as validation evidence. A validation test passes when the validator rejects the record and explains the correction.
 
 ## Required Metadata Cases
 
 | ID | Test | Result | Evidence |
 | --- | --- | --- | --- |
 | META-01 | Complete Knowledge Base SOP | PASS | Complete SOP returned as valid. |
-| META-02 | Knowledge Base FAQ | PASS | FAQ cycle of 90 rejected; action requires 180 days. |
+| META-02 | Knowledge Base FAQ | PASS | FAQ is complete without a Version or review-cycle requirement. |
 | META-03 | Workspace governance boundary | PASS | Workspace records are not forced to provide KB-only fields. |
-| META-04 | Approved External Reference | PASS | Approved whitelist match returns `retrieval_eligible=true`. |
-| META-05 | External source not approved | PASS | Missing, Pending, or Rejected whitelist match returns `retrieval_eligible=false`. |
+| META-04 | Approved External Reference | PASS | Complete metadata, approved domain, and metadata Authority External Official or Reference return `retrieval_eligible=true`. |
+| META-05 | External source not approved | PASS | Missing, Pending, Suspended, or Rejected whitelist match returns `retrieval_eligible=false`. |
 | META-06 | Registry URL not found | PASS | Exact lookup returns `found=false` and no guessed metadata. |
 | META-07 | SOP without Version | PASS | Record is invalid and reports `version` missing. |
-| META-08 | Approved record missing approval data | PASS | Missing approval fields are reported as required. |
+| META-08 | Approved record without approval-workflow fields | PASS | Approved By and Approved Date do not affect Schema Freeze v1.0 completeness. |
 | META-09 | Primary Domain validation | PASS | Values outside the controlled enum are rejected. |
-| META-10 | Review date calculation | PASS | Consistent dates pass; conflicting cycle or date values fail. |
+| META-10 | Suspended external source | PASS | Suspended is a valid whitelist status and always blocks retrieval. |
+| META-11 | Future Approved Date | PASS | A supplied date after today makes the record invalid and reports the required correction. |
 
 ## MCP Acceptance
 
@@ -41,6 +43,7 @@ The HTTP MCP acceptance test passed:
 ```text
 Tool discovery                  PASS
 13-record retrieval             PASS
+Flat standard output contract   PASS
 Exact URL lookup                PASS
 Missing URL returns found=false PASS
 Approved external retrieval     PASS
@@ -66,12 +69,19 @@ npm.cmd run test:knowledge-mcp:remote
 ## Approved Schema Changes
 
 - `Active` was removed from Status. Allowed values are Draft, Review, Approved, and Archived.
-- `Review Cycle Days = 0` is valid and means the cycle is disabled.
-- `Approved Date` cannot be later than today.
+- Review-cycle and approval-workflow fields are excluded from Schema Freeze v1.0 validation.
+- Approved Date remains optional, but a supplied future date is rejected as an approved operational constraint beyond v1.0.
 - External `source_domain` and `whitelist_status` are derived from the URL and whitelist table.
+- External whitelist `source_name` is read from the matched domain record; Authority Level remains in the main metadata registry.
+- `metadata_complete`, `whitelist_valid`, and `retrieval_eligible` follow the Schema Freeze v1.0 Scope rules.
+- MCP document results use the flat Schema Freeze v1.0 output contract without a nested `metadata` wrapper.
+
+Schema Freeze v1.0 originally listed Authority Level in the whitelist sub-schema. The project owner approved removing that duplicate field from the whitelist and retaining the main metadata registry as the only Authority Level source. This documented deviation should be included in the next schema revision.
 
 ## Known Limitations
 
+- Optional frozen fields (`lark_owner`, `workstream`, `project_name`, and project dates) are normalized when present, but the current pilot does not exercise them in live Base records.
+- Authority-based retrieval ranking is a retrieval-layer task; this reader currently provides the eligibility gate and Authority Level needed by that policy.
 - URL lookup is an exact string match.
 The system finds a record only when the submitted URL exactly matches the URL stored in Lark Base. Differences such as extra query parameters, a trailing slash, or another valid URL format for the same document may return found=false.
 - Validation results are reported but are not written back to Lark Base.

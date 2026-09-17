@@ -50,20 +50,26 @@ async function main() {
     assert.equal(all.success, true);
     assert.equal(all.record_count, expectedCount);
     assert.equal(all.documents.length, expectedCount);
+    for (const doc of all.documents) {
+      assert.equal(Object.hasOwn(doc, 'metadata'), false, 'Frozen output must not contain a metadata wrapper');
+      for (const key of ['title', 'source_url', 'scope', 'metadata_complete', 'missing_fields', 'whitelist_valid', 'retrieval_eligible']) {
+        assert.ok(Object.hasOwn(doc, key), `Flat document output is missing ${key}`);
+      }
+    }
 
-    const valid = all.documents.find(doc => doc.validation_status === 'valid' && doc.metadata.lark_url);
+    const valid = all.documents.find(doc => doc.validation_status === 'valid' && doc.source_url);
     const invalid = all.documents.find(doc => doc.validation_status === 'invalid');
     const approvedExternal = all.documents.find(doc =>
-      doc.metadata.scope === 'External Reference' && doc.retrieval_eligible === true);
+      doc.scope === 'External Reference' && doc.retrieval_eligible === true);
     const blockedExternal = all.documents.find(doc =>
-      doc.metadata.scope === 'External Reference' && doc.retrieval_eligible === false);
+      doc.scope === 'External Reference' && doc.retrieval_eligible === false);
 
     assert.ok(valid, 'Expected at least one valid record with a URL');
     assert.ok(invalid, 'Expected at least one intentional invalid record');
     assert.ok(approvedExternal, 'Expected an approved External Reference');
     assert.ok(blockedExternal, 'Expected a blocked External Reference negative case');
 
-    const { result: found } = await callTool(client, 'get_knowledge_metadata', { url: valid.metadata.lark_url });
+    const { result: found } = await callTool(client, 'get_knowledge_metadata', { url: valid.source_url });
     assert.equal(found.found, true);
     assert.ok(found.documents.some(doc => doc.record_id === valid.record_id));
 
@@ -78,7 +84,7 @@ async function main() {
       'get_knowledge_validation_report',
     );
     const reportText = reportResponse.content?.find(item => item.type === 'text')?.text || '';
-    assert.match(reportText, /^# Dictionary Validation Report/m);
+    assert.match(reportText, /^# Knowledge Registry Validation Report/m);
     assert.equal(report.record_count, expectedCount);
     assert.equal(report.summary.total, expectedCount);
     assert.equal(report.summary.valid + report.summary.invalid, expectedCount);
@@ -89,6 +95,7 @@ async function main() {
     console.log(JSON.stringify({
       status: 'PASS',
       record_count: all.record_count,
+      standard_output_contract: 'PASS',
       valid_count: report.summary.valid,
       invalid_count: report.summary.invalid,
       warning_count: report.summary.with_warnings,

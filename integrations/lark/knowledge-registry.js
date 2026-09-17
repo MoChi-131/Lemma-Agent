@@ -1,5 +1,4 @@
-//const DEFAULT_REGISTRY_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tbllHIJ3Mx3zQ1BS';
-const DEFAULT_REGISTRY_URL =  'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblS0JtYp4Tx3BKB&view=vewPu2Lfe7';
+const DEFAULT_REGISTRY_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblS0JtYp4Tx3BKB&view=vewPu2Lfe7';
 const DEFAULT_WHITELIST_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblxxLSOp5lg3z9g';
 
 const LARK_HOST_PATTERN = /^[a-z0-9.-]+\.larksuite\.com$/i;
@@ -13,33 +12,37 @@ const REQUEST_TIMEOUT_MS = 60000;
 // Exact column labels accepted in the separate External Reference whitelist table.
 // The first label in each list is the recommended field title in Lark Base.
 const whitelistFields = {
-  domain: ['Domain', 'Source Domain'],
+  // The live pilot stores its URL in Source Name and organization in
+  // Description. Prefer the frozen labels but keep that existing shape readable.
+  domain: ['Domain', 'Source Domain', 'Source Name'],
   status: ['Whitelist Status', 'Status'],
-  organization: ['Organization'],
-  approved_by: ['Approved By'],
-  approved_date: ['Approved Date'],
+  source_name: ['Description', 'Organization', 'Source Name'],
 };
 
 // Output JSON keys -> exact Base column labels. A renamed/missing column reads null.
 const fields = {
   title: 'Title',
-  lark_url: 'Lark URL',
+  // The Base column keeps its editor-friendly title; normalized output follows
+  // the Schema Freeze v1.0 `source_url` contract.
+  source_url: 'Lark URL',
   scope: 'Scope',
   primary_domain: 'Primary Domain',
   document_type: 'Document Type',
   tags: 'Tags',
   owner_person: 'Owner Person',
+  lark_owner: 'Lark Owner',
   authority_level: 'Authority Level',
   status: 'Status',
   version: 'Version',
-  approved_by: 'Approved By',
   approved_date: 'Approved Date',
-  last_reviewed_date: 'Last Reviewed Date',
-  review_cycle_days: 'Review Cycle Days',
-  next_review_date: 'Next Review Date',
-  source_domain: 'Source Domain',
-  whitelist_status: 'Whitelist Status',
+  workstream: 'Workstream',
+  project_name: 'Project Name',
+  project_start_date: 'Project Start Date',
+  project_end_date: 'Project End Date',
 };
+
+const listFieldKeys = new Set(['tags', 'owner_person', 'lark_owner']);
+const dateFieldKeys = new Set(['approved_date', 'project_start_date', 'project_end_date']);
 
 const documentTypesByScope = {
   'Knowledge Base': [
@@ -78,27 +81,20 @@ const enums = {
   document_type_by_scope: documentTypesByScope,
   status: ['Draft', 'Review', 'Approved', 'Archived'],
   authority_level: ['Internal Official', 'External Official', 'Reference', 'Unverified'],
-  whitelist_status: ['Approved', 'Pending', 'Rejected'],
-};
-
-const reviewCycles = {
-  Pricing: 30,
-  SOP: 90,
-  Policy: 90,
-  'Product Spec': 90,
-  FAQ: 180,
+  whitelist_status: ['Pending', 'Approved', 'Suspended', 'Rejected'],
 };
 
 const requiredByScope = {
-  'Knowledge Base': ['lark_url', 'owner_person', 'authority_level', 'status', 'last_reviewed_date'],
-  Workspace: ['lark_url'],
-  // Domain and whitelist status are derived from Lark URL + whitelist table.
-  'External Reference': ['lark_url', 'authority_level'],
+  // Schema Freeze v1.0 treats Owner Person as recommended and excludes review
+  // and approval-workflow fields from metadata completeness.
+  'Knowledge Base': ['source_url', 'authority_level', 'status'],
+  Workspace: ['source_url'],
+  // Source Domain is required by the contract but derived from the URL, so an
+  // invalid URL still produces a clear missing-field result without a Base column.
+  'External Reference': ['source_url', 'source_domain', 'authority_level'],
 };
 
 const versionRequiredDocumentTypes = ['SOP', 'Pricing', 'Policy', 'Product Spec'];
-const approvedStatuses = ['Approved'];
-const dateFieldKeys = ['approved_date', 'last_reviewed_date', 'next_review_date'];
 const larkDateObjectKeys = ['text', 'value', 'date', 'result', 'formula_result', 'display_value', 'timestamp', 'dateTime'];
 
 /**
@@ -389,16 +385,8 @@ function normalizeDateObject(value) {
   return null;
 }
 
-/** Normalize number fields such as Review Cycle Days. */
-function normalizeNumber(value) {
-  if (value == null || value === '') return null;
-
-  const num = Number(value);
-  return Number.isInteger(num) && num >= 0 ? num : null;
-}
-
 /**
- * Validate a single metadata record against dictionary rules.
+ * Validate one record against the frozen v1.0 required-field and enum rules.
  * Returns Expected, Actual, PASS/FAIL/WARNING, and Evidence for each check.
  */
 function validateRecord(metadata, missingFields, recordId) {
@@ -406,10 +394,33 @@ function validateRecord(metadata, missingFields, recordId) {
 
   addRequiredFieldsCheck(report, missingFields);
   addEnumChecks(report, metadata);
-  addFormatChecks(report, metadata);
-  addReviewCycleChecks(report, metadata);
+  addApprovedDateCheck(report, metadata.approved_date);
 
   return report;
+}
+
+/** An optional approval date is valid only when it is not later than today. */
+function addApprovedDateCheck(report, approvedDate) {
+  if (!approvedDate) return;
+
+  const today = getLocalIsoDate();
+  const pass = approvedDate <= today;
+
+  addCheck(report, 'approved_date_not_future', {
+    expected: `on or before ${today}`,
+    actual: approvedDate,
+    pass,
+    evidence: pass
+      ? `Approved Date ${approvedDate} is not in the future`
+      : `Approved Date ${approvedDate} is later than today (${today})`,
+  });
+}
+
+function getLocalIsoDate(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function createValidationReport(recordId) {
@@ -503,168 +514,14 @@ function addEnumChecks(report, metadata) {
   }
 }
 
-function addFormatChecks(report, metadata) {
-  for (const field of dateFieldKeys) {
-    if (!isBlankValue(metadata[field])) {
-      addDateFormatCheck(report, field, metadata[field]);
-    }
-  }
-
-  addApprovedDateTimelineCheck(report, metadata.approved_date);
-
-  if (!isBlankValue(metadata.review_cycle_days)) {
-    addNumberFormatCheck(report, 'review_cycle_days_format', metadata.review_cycle_days);
-  }
-}
-
-function addApprovedDateTimelineCheck(report, approvedDate) {
-  if (isBlankValue(approvedDate)) return;
-
-  const normalized = normalizeDate(approvedDate);
-  if (!normalized) return; // The date-format check already reports this error.
-
-  const today = getLocalIsoDate();
-  const pass = normalized <= today;
-
-  addCheck(report, 'approved_date_not_future', {
-    expected: `on or before ${today}`,
-    actual: normalized,
-    pass,
-    evidence: pass
-      ? `Approved Date ${normalized} is not in the future`
-      : `Approved Date ${normalized} is later than today (${today})`,
-  });
-}
-
-function getLocalIsoDate(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function addDateFormatCheck(report, field, value) {
-  const normalized = normalizeDate(value);
-  const pass = normalized !== null && /^\d{4}-\d{2}-\d{2}$/.test(normalized);
-
-  addCheck(report, `${field}_format`, {
-    expected: 'ISO 8601 YYYY-MM-DD format',
-    actual: normalized || 'invalid',
-    pass,
-    evidence: pass ? `Normalized to ${normalized}` : `Could not parse date: ${formatEvidenceValue(value)}`,
-  });
-}
-
-function addNumberFormatCheck(report, checkName, value) {
-  const normalized = normalizeNumber(value);
-
-  addCheck(report, checkName, {
-    expected: 'non-negative integer',
-    actual: normalized ?? 'invalid',
-    pass: normalized !== null,
-    evidence: normalized !== null ? `Normalized to ${normalized}` : `Invalid number: ${formatEvidenceValue(value)}`,
-  });
-}
-
-function addReviewCycleChecks(report, metadata) {
-  addReviewCycleRuleCheck(report, metadata);
-  addReviewCycleConsistencyCheck(report, metadata);
-  addReviewDueStatusCheck(report, metadata);
-}
-
-function addReviewCycleRuleCheck(report, metadata) {
-  const expectedCycle = metadata.scope === 'Knowledge Base' ? reviewCycles[metadata.document_type] : undefined;
-  if (!expectedCycle) return;
-
-  const actualCycle = normalizeNumber(metadata.review_cycle_days);
-  const cycleDisabled = actualCycle === 0;
-
-  addCheck(report, 'review_cycle_rule', {
-    expected: expectedCycle,
-    actual: actualCycle ?? 'missing',
-    pass: actualCycle === expectedCycle,
-    severity: actualCycle == null || cycleDisabled ? 'warning' : 'error',
-    evidence:
-      actualCycle === expectedCycle
-        ? 'Matches dictionary rule'
-        : cycleDisabled
-          ? `Review cycle is disabled with 0; ${metadata.document_type} normally uses ${expectedCycle} days`
-        : `Expected ${expectedCycle} days for ${metadata.document_type}`,
-  });
-}
-
-function addReviewCycleConsistencyCheck(report, metadata) {
-  if (
-    isBlankValue(metadata.last_reviewed_date) ||
-    isBlankValue(metadata.review_cycle_days) ||
-    isBlankValue(metadata.next_review_date)
-  ) {
-    return;
-  }
-
-  const lastReviewDate = normalizeDate(metadata.last_reviewed_date);
-  const cycleDays = normalizeNumber(metadata.review_cycle_days);
-  const nextReviewDate = normalizeDate(metadata.next_review_date);
-
-  if (!lastReviewDate || cycleDays == null || cycleDays === 0 || !nextReviewDate) {
-    return;
-  }
-
-  const expectedDate = addDays(lastReviewDate, cycleDays);
-  const isConsistent = Math.abs(new Date(nextReviewDate) - new Date(expectedDate)) < 86400000;
-
-  addCheck(report, 'review_cycle_consistency', {
-    expected: `${lastReviewDate} + ${cycleDays}d = next_review`,
-    actual: isConsistent ? 'consistent' : 'inconsistent',
-    pass: isConsistent,
-    evidence: isConsistent
-      ? `Next review ${nextReviewDate} matches ${lastReviewDate} + ${cycleDays} days`
-      : `Mismatch: ${nextReviewDate}; expected around ${expectedDate}`,
-  });
-}
-
-function addReviewDueStatusCheck(report, metadata) {
-  if (!metadata.next_review_date) {
-    return;
-  }
-
-  const nextReviewDate = normalizeDate(metadata.next_review_date);
-  if (!nextReviewDate) {
-    return;
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const isFuture = new Date(nextReviewDate) >= today;
-  addCheck(report, 'review_due_status', {
-    expected: 'informational review timing',
-    actual: isFuture ? 'not due' : 'overdue',
-    pass: true,
-    severity: 'info',
-    evidence: isFuture ? `Next review is ${nextReviewDate}` : `Review became due on ${nextReviewDate}`,
-  });
-}
-
-function addDays(isoDate, days) {
-  const date = new Date(isoDate);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split('T')[0];
-}
-
-function formatEvidenceValue(value) {
-  return typeof value === 'object' ? JSON.stringify(value) : value;
-}
-
 /**
  * Convert one raw record into metadata plus validation and whitelist eligibility.
- * Approver authorization itself is not verified.
  *
  * @example normalizeRecord({ record_id: 'example', fields: { Title: 'Example' } });
  */
 function normalizeRecord(record, whitelist = []) {
   const metadata = mapBaseFieldsToMetadata(record.fields || {});
-  const whitelistCheck = checkWhitelistEligibility(metadata, whitelist);
+  const whitelistCheck = checkWhitelist(metadata, whitelist);
 
   // External governance fields come from the URL and whitelist source of truth;
   // they do not need to exist as columns in the metadata registry table.
@@ -675,16 +532,19 @@ function normalizeRecord(record, whitelist = []) {
 
   const missingFields = findMissingRequiredFields(metadata);
   const validationReport = validateRecord(metadata, missingFields, record.record_id);
+  const metadataComplete = missingFields.length === 0;
+  const whitelistValid = metadata.scope === 'External Reference' ? whitelistCheck.approved : null;
+  const retrievalEligible = calculateRetrievalEligibility(metadata, metadataComplete, whitelistValid);
 
   return {
     record_id: record.record_id,
-    metadata,
+    ...metadata,
+    metadata_complete: metadataComplete,
     missing_fields: missingFields,
+    whitelist_valid: whitelistValid,
+    retrieval_eligible: retrievalEligible,
     validation_status: hasErrorLevelFailure(validationReport) ? 'invalid' : 'valid',
     validation_report: validationReport,
-    // Kept for backward compatibility; both fields now use the whitelist table.
-    external_source_approved: whitelistCheck.approved,
-    retrieval_eligible: whitelistCheck.retrieval_eligible,
     whitelist_check: whitelistCheck.details,
   };
 }
@@ -695,10 +555,12 @@ function mapBaseFieldsToMetadata(rawFields) {
   for (const [key, label] of Object.entries(fields)) {
     const value = rawFields[label];
 
-    if (['owner_person', 'approved_by', 'tags'].includes(key)) {
-      metadata[key] = value == null ? null : (Array.isArray(value) ? value : [value]).map(text);
-    } else if (key.endsWith('_date') || key === 'review_cycle_days') {
-      metadata[key] = value == null || value === '' ? null : value;
+    if (listFieldKeys.has(key)) {
+      metadata[key] = value == null
+        ? null
+        : (Array.isArray(value) ? value : [value]).map(text).filter(item => item != null);
+    } else if (dateFieldKeys.has(key)) {
+      metadata[key] = normalizeDate(value);
     } else {
       metadata[key] = text(value);
     }
@@ -714,10 +576,6 @@ function findMissingRequiredFields(metadata) {
 
   if (metadata.scope === 'Knowledge Base' && versionRequiredDocumentTypes.includes(metadata.document_type)) {
     required.push('version');
-  }
-
-  if (metadata.scope === 'Knowledge Base' && approvedStatuses.includes(metadata.status)) {
-    required.push('approved_by', 'approved_date');
   }
 
   return required.filter(key => isMissingRequiredValue(metadata[key]));
@@ -739,9 +597,7 @@ function normalizeWhitelistRecord(record) {
     record_id: record.record_id,
     domain: normalizeDomain(readFirstField(rawFields, whitelistFields.domain)),
     status: text(readFirstField(rawFields, whitelistFields.status)),
-    organization: text(readFirstField(rawFields, whitelistFields.organization)),
-    approved_by: text(readFirstField(rawFields, whitelistFields.approved_by)),
-    approved_date: normalizeDate(readFirstField(rawFields, whitelistFields.approved_date)),
+    source_name: text(readFirstField(rawFields, whitelistFields.source_name)),
   };
 }
 
@@ -767,7 +623,7 @@ function normalizeDomain(value) {
 }
 
 function getDocumentDomain(metadata) {
-  return normalizeDomain(metadata.lark_url) || normalizeDomain(metadata.source_domain);
+  return normalizeDomain(metadata.source_url) || normalizeDomain(metadata.source_domain);
 }
 
 /** Parent domains approve their exact host and real subdomains only. */
@@ -779,9 +635,9 @@ function domainMatches(documentDomain, approvedDomain) {
   );
 }
 
-function checkWhitelistEligibility(metadata, whitelist) {
+function checkWhitelist(metadata, whitelist) {
   if (metadata.scope !== 'External Reference') {
-    return { approved: null, retrieval_eligible: true, details: null };
+    return { approved: null, details: null };
   }
 
   const documentDomain = getDocumentDomain(metadata);
@@ -790,14 +646,32 @@ function checkWhitelistEligibility(metadata, whitelist) {
 
   return {
     approved,
-    retrieval_eligible: approved,
     details: {
       document_domain: documentDomain,
       matched_domain: match?.domain || null,
       whitelist_status: match?.status || null,
+      source_name: match?.source_name || null,
       whitelist_record_id: match?.record_id || null,
     },
   };
+}
+
+/** Apply the frozen v1.0 retrieval gate after completeness and whitelist checks. */
+function calculateRetrievalEligibility(metadata, metadataComplete, whitelistValid) {
+  if (!metadataComplete) return false;
+
+  if (metadata.scope === 'Knowledge Base') {
+    return metadata.status === 'Approved' &&
+      ['Internal Official', 'Reference'].includes(metadata.authority_level);
+  }
+
+  if (metadata.scope === 'External Reference') {
+    return whitelistValid === true &&
+      ['External Official', 'Reference'].includes(metadata.authority_level);
+  }
+
+  // Workspace and unknown scopes never enter formal Knowledge Retrieval.
+  return false;
 }
 
 /**
@@ -815,7 +689,7 @@ async function getKnowledgeMetadata(input = {}, deps = {}) {
   const whitelist = needsWhitelist ? await loadWhitelist(input, deps) : [];
   const documents = nonEmptyRecords
     .map(record => normalizeRecord(record, whitelist))
-    .filter(row => !input.url || row.metadata.lark_url === input.url);
+    .filter(row => !input.url || row.source_url === input.url);
 
   return {
     success: true,
@@ -885,11 +759,11 @@ function buildValidationSummary(documents) {
 
 function buildValidationReportText({ result, validDocs, invalidDocs }) {
   const lines = [
-    '# Dictionary Validation Report',
+    '# Knowledge Registry Validation Report',
     `Generated: ${new Date().toISOString()}`,
     `Total Records: ${result.record_count}`,
     `Skipped Empty Rows: ${result.skipped_empty_record_count}`,
-    'Validation Mode: Dictionary checks (required fields + Scope-specific enums + supplied date/number formats + review-cycle rules)',
+    'Validation Mode: Schema Freeze v1.0 checks (required fields + Scope-specific enums)',
     '',
     '---',
     '',
@@ -934,7 +808,7 @@ function groupDocumentsByScope(documents) {
   const byScope = {};
 
   for (const doc of documents) {
-    const scope = doc.metadata.scope || 'Unknown';
+    const scope = doc.scope || 'Unknown';
     if (!byScope[scope]) byScope[scope] = { valid: 0, invalid: 0 };
     byScope[scope][doc.validation_status === 'valid' ? 'valid' : 'invalid']++;
   }
@@ -978,8 +852,8 @@ function buildInvalidRecordLines(invalidDocs) {
     const action = buildRequiredActions(doc).join(' ');
 
     return [
-      `#### ${index + 1}. **${doc.record_id}** - "${doc.metadata.title || '(no title)'}"`,
-      `- **Scope**: ${doc.metadata.scope || 'Unknown'}`,
+      `#### ${index + 1}. **${doc.record_id}** - "${doc.title || '(no title)'}"`,
+      `- **Scope**: ${doc.scope || 'Unknown'}`,
       ...buildInvalidRecordMissingFieldLines(doc),
       `- **Action**: ${action}`,
       '',
@@ -996,25 +870,15 @@ function buildRequiredActions(doc) {
 
   for (const [checkName, check] of getFailedErrorChecks(doc)) {
     if (checkName === 'required_fields') continue;
-    actions.push(describeFailedCheck(checkName, check, doc.metadata));
+    actions.push(describeFailedCheck(checkName, check));
   }
 
   return actions.length ? actions : ['Review this record.'];
 }
 
-function describeFailedCheck(checkName, check, metadata) {
+function describeFailedCheck(checkName, check) {
   if (checkName === 'approved_date_not_future') {
-    return `Change Approved Date to the actual approval date on or before today. ` +
-      `The current value ${check.actual} is in the future; expected ${check.expected}.`;
-  }
-
-  if (checkName === 'review_cycle_rule') {
-    return `Set Review Cycle Days to ${check.expected} for ${metadata.document_type || 'this document type'}. ` +
-      `The current value is ${check.actual}, which does not match the required review-cycle rule.`;
-  }
-
-  if (checkName === 'review_cycle_consistency') {
-    return `Correct Next Review Date so it matches ${check.expected}. ${check.evidence}.`;
+    return `Change Approved Date to today or an earlier date. Current value ${check.actual}; expected ${check.expected}.`;
   }
 
   if (checkName.endsWith('_format')) {
@@ -1052,15 +916,15 @@ function buildValidRecordLines(validDocs) {
   }
 
   return validDocs.map((doc, index) => (
-    `${index + 1}. **${doc.record_id}** - "${doc.metadata.title || '(no title)'}" (${doc.metadata.scope || 'Unknown'})`
+    `${index + 1}. **${doc.record_id}** - "${doc.title || '(no title)'}" (${doc.scope || 'Unknown'})`
   ));
 }
 
 function buildDetailedRecordLines(documents) {
   return documents.flatMap(doc => [
     `## Record: ${doc.record_id}`,
-    `Title: ${doc.metadata.title || '(no title)'}`,
-    `Scope: ${doc.metadata.scope || '(no scope)'}`,
+    `Title: ${doc.title || '(no title)'}`,
+    `Scope: ${doc.scope || '(no scope)'}`,
     '',
     ...buildValidationCheckLines(doc),
     ...buildMissingFieldsLines(doc),
@@ -1133,8 +997,6 @@ module.exports = {
   getValidationReport,
   validateRecord,
   normalizeDate,
-  normalizeNumber,
   isEmptyRecord,
   enums,
-  reviewCycles,
 };

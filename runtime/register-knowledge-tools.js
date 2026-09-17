@@ -7,7 +7,7 @@ function registerKnowledgeTools(server) {
 
   server.registerTool('get_knowledge_metadata', {
     title: 'Get Knowledge Metadata',
-    description: 'Read registry metadata without modifying Base records. External Reference retrieval_eligible is verified against the separate domain whitelist table.',
+    description: 'Read registry metadata without modifying Base records. retrieval_eligible applies the frozen completeness, Scope, Status, Authority and external-whitelist rules.',
     inputSchema: {
       url: z.string().url().optional().describe('Optional exact document URL'),
       registryUrl: z.string().url().optional().describe('Optional registry Base URL override'),
