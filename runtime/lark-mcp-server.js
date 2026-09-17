@@ -1,4 +1,5 @@
 const { registerWikiSearchTools } = require("./register-wiki-search-tools");
+const { registerKnowledgeTools } = require("./register-knowledge-tools");
 const { McpServer } = require(
   "@modelcontextprotocol/sdk/server/mcp.js"
 );
@@ -61,6 +62,7 @@ async function main() {
   registerWikiTreeTool(server);
   registerWikiSubtreeTool(server);
   registerWikiSearchTools(server);
+  registerKnowledgeTools(server);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Supermama Lark MCP Server v0.3.4 started");
