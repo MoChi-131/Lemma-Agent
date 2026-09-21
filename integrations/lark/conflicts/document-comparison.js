@@ -257,6 +257,8 @@ function round(value) {
 const STOP_WORDS = new Set([
   'the', 'a', 'an', 'and', 'or', 'of', 'to', 'for', 'is', 'are',
   '的', '和', '及', '與', '是', '為', '在', '需', '需要',
+  // Generic operational terms do not prove that two documents share a topic.
+  '客戶', '資料', '文件', '服務', '提供', '完成', '確認', '安排',
 ]);
 
 module.exports = {
