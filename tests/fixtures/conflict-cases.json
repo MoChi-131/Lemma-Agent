@@ -1,0 +1,86 @@
+[
+  {
+    "id": "CON-01",
+    "description": "相同服務資料只有空格、換行及中英文標點差異",
+    "document_a": { "title": "標準驗樓服務資料", "content": "服務：500 呎以下住宅驗樓\n價格：HK$2,000\n服務包括：窗戶、門、牆身及浴室檢查。\n預約方法：客戶確認收樓日期後聯絡客服。" },
+    "document_b": { "title": "標準驗樓服務資料（排版版）", "content": "服務: 500 呎以下住宅驗樓\n價格: HK$2,000\n服務包括: 窗戶、門、牆身及浴室檢查。\n預約方法: 客戶確認收樓日期後聯絡客服。" },
+    "expected": { "relationship": "Same", "conflict_types": [], "requires_human_review": false }
+  },
+  {
+    "id": "CON-02",
+    "description": "兩份驗樓指引大部分內容相同，但新版加入一項提示",
+    "document_a": { "title": "驗樓前準備清單", "content": "客戶須在驗樓前確認單位地址、樓層及驗樓日期。\n請準備售樓說明書、單位平面圖、鎖匙及發展商執修表。\n驗樓當日由業主或獲授權人士陪同進入單位。\n完成後，團隊會整理照片及問題清單，再交付驗樓報告。" },
+    "document_b": { "title": "新業主驗樓準備指南", "content": "客戶須在驗樓前確認單位地址、樓層及驗樓日期。\n請準備售樓說明書、單位平面圖、鎖匙及發展商執修表。\n驗樓當日由業主或獲授權人士陪同進入單位。\n完成後，團隊會整理照片及問題清單，再交付驗樓報告。\n如單位仍未通水電，請預先通知驗樓團隊。" },
+    "expected": { "relationship": "Possible Duplicate", "conflict_types": [], "requires_human_review": true }
+  },
+  {
+    "id": "CON-03",
+    "description": "同一面積及服務範圍出現不同驗樓價格",
+    "document_a": { "title": "驗樓服務價目表 2026", "content": "適用單位：500 呎以下住宅。\n標準驗樓服務收費為 HK$2,000，包括窗戶、門、牆身、浴室及廚房檢查。\n報告會在驗樓完成後三個工作天內提供。\n此價格不包括偏遠地區附加費。" },
+    "document_b": { "title": "驗樓服務收費說明", "content": "適用單位：500 呎以下住宅。\n標準驗樓服務收費為 HK$2,500，包括窗戶、門、牆身、浴室及廚房檢查。\n報告會在驗樓完成後三個工作天內提供。\n此價格不包括偏遠地區附加費。" },
+    "expected": { "relationship": "Possible Conflict", "conflict_types": ["Price"], "requires_human_review": true }
+  },
+  {
+    "id": "CON-04",
+    "description": "同一驗樓 SOP 的必要步驟內容不同",
+    "document_a": { "title": "驗樓服務 SOP", "content": "目的：確保所有驗樓個案採用一致流程。\n1. 必須在服務前一日向客戶確認時間及地址。\n2. 必須在進入單位前核對業主身份及授權文件。\n3. 必須先完成全屋拍照，然後逐區檢查。\n4. 必須由主管覆核報告後才交付客戶。\n所有異常情況須記錄在個案備註。" },
+    "document_b": { "title": "驗樓服務 SOP 修訂稿", "content": "目的：確保所有驗樓個案採用一致流程。\n1. 必須在服務前一日向客戶確認時間及地址。\n2. 必須在進入單位後才核對業主身份及授權文件。\n3. 必須先逐區檢查，完成後再拍攝問題位置。\n4. 必須由驗樓員直接把報告交付客戶。\n所有異常情況須記錄在個案備註。" },
+    "expected": { "relationship": "Possible Conflict", "conflict_types": ["Process"], "requires_human_review": true }
+  },
+  {
+    "id": "CON-05",
+    "description": "同一冷氣機主題的安裝指引與保養指引互相補充",
+    "document_a": { "title": "分體式冷氣機安裝前檢查", "content": "安裝前應確認室內機及室外機位置、去水斜度和電源負荷。\n窗口附近須預留足夠維修空間，去水喉不可向上屈曲。\n如大廈外牆工程需要申請，客戶應先向管理處查詢。" },
+    "document_b": { "title": "分體式冷氣機日常保養", "content": "冷氣機濾網建議每兩星期清潔一次，並定期檢查去水喉有否淤塞。\n長時間停用後，重新啟動前應檢查室外機附近是否有雜物。\n如出現漏水或異常聲音，應安排合資格技術員檢查。" },
+    "expected": { "relationship": "Complementary", "conflict_types": [], "requires_human_review": false }
+  },
+  {
+    "id": "CON-06",
+    "description": "驗樓預約流程與社交媒體內容守則屬不同主題",
+    "document_a": { "title": "驗樓預約流程", "content": "客戶提交單位面積、地址及收樓日期後，客服會確認驗樓員檔期。\n付款完成後才會保留時段，預約資料會記錄在服務日曆。" },
+    "document_b": { "title": "社交媒體帖文守則", "content": "品牌帖文須使用核准的標誌、字體及圖片比例。\n發布前由市場部覆核文字，不可公開客戶個人資料或未授權照片。" },
+    "expected": { "relationship": "Different Topic", "conflict_types": [], "requires_human_review": false }
+  },
+  {
+    "id": "CON-07",
+    "description": "同一課堂活動出現不同報名截止日期",
+    "document_a": { "title": "九月驗樓實體班安排", "content": "活動名稱：九月驗樓實體班。\n上課日期為 2026-09-30，地點為觀塘培訓室。\n參加者須在 2026-09-20 前完成報名及付款。\n名額確認後會由活動組發送上課通知。" },
+    "document_b": { "title": "九月驗樓實體班最新安排", "content": "活動名稱：九月驗樓實體班。\n上課日期為 2026-09-30，地點為觀塘培訓室。\n參加者須在 2026-09-25 前完成報名及付款。\n名額確認後會由活動組發送上課通知。" },
+    "expected": { "relationship": "Possible Conflict", "conflict_types": ["Date"], "requires_human_review": true }
+  },
+  {
+    "id": "CON-08",
+    "description": "兩個不同服務包含不同價格，規則層保守標記供人工排除誤報",
+    "document_a": { "title": "標準住宅驗樓服務", "content": "本服務適用於 500 呎以下住宅，收費為 HK$2,380。\n服務包括基本設備測試、牆身空鼓檢查及門窗檢查。\n完成後提供電子驗樓報告，不包括任何冷氣機供應或安裝。" },
+    "document_b": { "title": "分體式冷氣機供應及安裝", "content": "本服務提供一部指定型號分體式冷氣機及標準安裝，套裝收費為 HK$12,380。\n價格包括基本銅喉及去水工程，不包括棚架費。\n客戶須在安裝前確認電源和室外機位置。" },
+    "expected": { "relationship": "Possible Conflict", "conflict_types": ["Price"], "requires_human_review": true }
+  },
+  {
+    "id": "CON-09",
+    "description": "兩份價目表缺少生效日期及面積條件，保留人工審核",
+    "document_a": { "title": "驗樓服務報價 A", "content": "標準驗樓服務收費為 HK$2,000。\n內容包括門窗、牆身及浴室檢查，報告以電子方式提供。\n文件未列明適用單位面積、生效日期或優惠條件。" },
+    "document_b": { "title": "驗樓服務報價 B", "content": "標準驗樓服務收費為 HK$2,500。\n內容包括門窗、牆身及浴室檢查，報告以電子方式提供。\n文件未列明適用單位面積、生效日期或優惠條件。" },
+    "expected": { "relationship": "Possible Conflict", "conflict_types": ["Price"], "requires_human_review": true }
+  },
+  {
+    "id": "CON-10",
+    "description": "同一客服渠道列出不同電話及電郵",
+    "document_a": { "title": "驗樓售後服務聯絡方法", "content": "如客戶對驗樓報告有疑問，請在辦公時間致電 2123 4567，或電郵至 service@supermama.hk。\n客服會在兩個工作天內回覆，查詢時請提供報告編號及單位地址。" },
+    "document_b": { "title": "驗樓售後查詢渠道", "content": "如客戶對驗樓報告有疑問，請在辦公時間致電 2987 6543，或電郵至 support@supermama.hk。\n客服會在兩個工作天內回覆，查詢時請提供報告編號及單位地址。" },
+    "expected": { "relationship": "Possible Conflict", "conflict_types": ["Contact Info"], "requires_human_review": true }
+  },
+  {
+    "id": "CON-11",
+    "description": "同一活動同時出現日期、價格及聯絡資料差異",
+    "document_a": { "title": "驗樓進階班正式通知", "content": "驗樓進階班將於 2026-10-12 舉行，課程費用為 HK$880。\n查詢請致電 2123 4567 或電郵 training@supermama.hk。\n參加者完成付款後會收到確認信及課前材料。" },
+    "document_b": { "title": "驗樓進階班最新通知", "content": "驗樓進階班將於 2026-10-19 舉行，課程費用為 HK$980。\n查詢請致電 2987 6543 或電郵 academy@supermama.hk。\n參加者完成付款後會收到確認信及課前材料。" },
+    "expected": { "relationship": "Possible Conflict", "conflict_types": ["Price", "Date", "Contact Info"], "requires_human_review": true }
+  },
+  {
+    "id": "CON-12",
+    "description": "高度重複的驗樓知識文章加入額外案例，仍需重複內容審核",
+    "document_a": { "title": "常見空心磚問題", "content": "空心磚是指批盪層或瓷磚與基層黏合不足，敲擊時會出現空洞聲。\n少量空心不一定即時影響結構安全，但範圍擴大後可能引致批盪或瓷磚剝落。\n驗樓時應記錄位置、面積及聲音差異，並在執修表清楚標示。\n業主應要求發展商檢查成因，再按實際情況安排修補。" },
+    "document_b": { "title": "牆身及瓷磚空鼓處理指引", "content": "空心磚是指批盪層或瓷磚與基層黏合不足，敲擊時會出現空洞聲。\n少量空心不一定即時影響結構安全，但範圍擴大後可能引致批盪或瓷磚剝落。\n驗樓時應記錄位置、面積及聲音差異，並在執修表清楚標示。\n業主應要求發展商檢查成因，再按實際情況安排修補。\n例如浴室牆磚接近水管的位置，修補前應先確認喉管走向。" },
+    "expected": { "relationship": "Possible Duplicate", "conflict_types": [], "requires_human_review": true }
+  }
+]
