@@ -4,9 +4,8 @@ const { readLarkDocumentTool } = require('../documents/read-lark-document');
 const {
   compareWithDecisionRegistry,
 } = require('../../../integrations/lark/conflicts/conflict-decision-registry');
-const { reviewConflictWithAi } = require('../../../integrations/lark/conflicts/ai-conflict-review');
 
-const DEFAULT_DECISIONS_FILE = path.join(__dirname, '../../data/conflict-decisions.json');
+const DEFAULT_DECISIONS_FILE = path.join(__dirname, '../../../data/conflict-decisions.json');
 
 /** MCP-facing orchestration: read two Lark documents, then resolve or compare. */
 async function resolveDocumentConflictTool(input, deps = {}) {
@@ -41,53 +40,12 @@ async function resolveDocumentConflictTool(input, deps = {}) {
     decisions,
   );
 
-  const review = input.use_ai === false || result.decision_reused
-    ? { status: 'skipped', reason: 'AI review was disabled or an approved decision was reused.' }
-    : await safelyReviewConflict(result, deps.reviewConflict);
-  const reviewedResult = applyAiReview(result, review);
-
   return {
-    ...reviewedResult,
-    ai_review: review,
+    ...result,
     agent_observation: {
       suspected_conflict_type: input.suspected_conflict_type || null,
       reason: input.reason || null,
     },
-  };
-}
-
-async function safelyReviewConflict(result, reviewer = reviewConflictWithAi) {
-  try {
-    return await reviewer(result);
-  } catch (error) {
-    return {
-      status: 'unavailable',
-      reason: error instanceof Error ? error.message : 'AI conflict review failed.',
-    };
-  }
-}
-
-function applyAiReview(result, review) {
-  if (review.status !== 'completed') return result;
-
-  const requiresHumanReview = review.requires_human_review ||
-    ['confirmed_conflict', 'uncertain'].includes(review.verdict);
-  const proposed = requiresHumanReview
-    ? { ...(result.proposed_review_record || {}), ai_review: review, review_status: 'Pending' }
-    : null;
-
-  return {
-    ...result,
-    deterministic_candidate: {
-      relationship: result.relationship,
-      conflict_types: result.conflict_types,
-      explanation: result.explanation,
-    },
-    relationship: review.relationship,
-    conflict_types: review.conflict_types,
-    explanation: review.explanation,
-    requires_human_review: requiresHumanReview,
-    proposed_review_record: proposed,
   };
 }
 

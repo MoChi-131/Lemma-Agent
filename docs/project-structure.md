@@ -1,33 +1,53 @@
 # Project Structure
 
-Scripts are grouped first by responsibility and then by feature.
+Production code is grouped by responsibility and then by feature.
 
 ```text
 integrations/lark/
-  core/         Lark authentication, document API and shared client
+  core/         Lark authentication and document APIs
   wiki/         Wiki traversal, metadata and subtree logic
-  knowledge/    Knowledge Registry and whitelist logic
-  conflicts/    Duplicate detection, conflict review and decision reuse
+  knowledge/    Registry, validation, whitelist and eligibility rules
+  conflicts/    Comparison rules and approved-decision reuse
 
 tools/lark/
-  documents/    Document read and append tool handlers
-  wiki/         Wiki tree, subtree, metadata and search tool handlers
-  conflicts/    Conflict resolution tool handler
+  documents/    Raw document read and append handlers
+  wiki/         Wiki tree, subtree, metadata and search handlers
+  knowledge/    Governed metadata-to-content retrieval
+  conflicts/    Conflict resolution and assessment handlers
 
 runtime/
-  servers/      Stdio and HTTP MCP entry points
-  registrations/MCP tool registration modules
-  core/         Local tool registry and skill runner
+  core/         Shared MCP server factory and legacy local skill runner
+  registrations/MCP tool schemas, descriptions and handlers
+  servers/      Stdio and Streamable HTTP transport entry points
 
 tests/
-  conflicts/    Duplicate and conflict tests
-  knowledge/    Registry and metadata tests
-  wiki/         Wiki traversal and search tests
-  mcp/          MCP client tests
+  wiki/         Wiki traversal, body reading and search
+  knowledge/    Registry, validation and governed retrieval
+  conflicts/    Classification, decision reuse and assessment
+  mcp/          MCP client checks
   integration/  Manual integration checks
-  fixtures/     Shared test fixtures
+  fixtures/     Shared deterministic test data
 
-scripts/lark/   Standalone Lark diagnostic and maintenance scripts
+scripts/lark/   Standalone Lark diagnostics
+skills/         Local skill instructions
+docs/           Current specifications, acceptance evidence and release history
 ```
 
-Production code must not import files from `tests/` or `scripts/`. MCP servers should register tools through `runtime/registrations/`; tool handlers should delegate API and domain work to `integrations/`.
+## Dependency direction
+
+```text
+MCP client
+  -> runtime/servers
+  -> runtime/core/create-lark-mcp-server
+  -> runtime/registrations
+  -> tools/lark
+  -> integrations/lark
+  -> Lark APIs
+```
+
+- Servers handle transport and sessions only.
+- Registrations define MCP names, descriptions, schemas and annotations.
+- Tools coordinate one user-facing operation.
+- Integrations contain reusable API and domain logic.
+- Production code must not import from `tests/` or `scripts/`.
+- Both MCP transports use the shared server factory so their core tool behavior stays consistent.

@@ -20,36 +20,13 @@ test('agent observation triggers comparison but cannot approve the result', asyn
       content: id === 'document_a' ? '服務價格 HK$2,000。' : '服務價格 HK$2,500。',
     }),
     readDecisions: async () => [],
-    reviewConflict: async () => ({ status: 'unavailable', reason: 'Test fallback' }),
   });
 
   assert.equal(result.relationship, 'Possible Conflict');
   assert.equal(result.proposed_review_record.review_status, 'Pending');
   assert.equal(result.proposed_review_record.decision, null);
   assert.equal(result.agent_observation.suspected_conflict_type, 'Price');
-});
-
-test('applies AI contextual review while preserving the deterministic candidate', async () => {
-  const result = await resolveDocumentConflictTool(input, {
-    loadDocument: async (url, id) => ({
-      id, url, title: id,
-      content: id === 'document_a' ? '驗樓價格 HK$2,000。' : '裝修套餐價格 HK$12,000。',
-    }),
-    readDecisions: async () => [],
-    reviewConflict: async () => ({
-      status: 'completed',
-      verdict: 'no_conflict',
-      relationship: 'Complementary',
-      conflict_types: [],
-      explanation: 'The prices describe different services.',
-      requires_human_review: false,
-    }),
-  });
-
-  assert.equal(result.deterministic_candidate.relationship, 'Possible Conflict');
-  assert.equal(result.relationship, 'Complementary');
-  assert.equal(result.proposed_review_record, null);
-  assert.equal(result.ai_review.verdict, 'no_conflict');
+  assert.equal('ai_review' in result, false);
 });
 
 test('reports each failed document read without inventing a classification', async () => {
@@ -66,6 +43,15 @@ test('reports each failed document read without inventing a classification', asy
   assert.equal(result.errors[0].document, 'document_a');
 });
 
+test('loads the project decision registry from its default location', async () => {
+  const result = await resolveDocumentConflictTool(input, {
+    loadDocument: async (url, id) => ({ id, url, title: id, content: 'Shared document body' }),
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(result.relationship, 'Same');
+});
+
 test('rejects an HTTP Wiki URL before calling Lark', async () => {
   const { loadLarkDocument } = require('../../tools/lark/conflicts/resolve-document-conflict');
   await assert.rejects(
@@ -76,8 +62,13 @@ test('rejects an HTTP Wiki URL before calling Lark', async () => {
 
 test('registerKnowledgeTools exposes resolve_document_conflict', () => {
   const names = [];
-  const server = { registerTool: name => names.push(name) };
+  const definitions = new Map();
+  const server = { registerTool: (name, definition) => {
+    names.push(name);
+    definitions.set(name, definition);
+  } };
   const { registerKnowledgeTools } = require('../../runtime/registrations/register-knowledge-tools');
   registerKnowledgeTools(server);
   assert.ok(names.includes('resolve_document_conflict'));
+  assert.equal('use_ai' in definitions.get('resolve_document_conflict').inputSchema, false);
 });

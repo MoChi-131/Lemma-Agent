@@ -37,6 +37,7 @@ For compatibility with the live pilot table, a URL in `Source Name` is accepted 
 | `normalizeRecord(record)` | Map Base fields, find required-field gaps, validate, and set record status. |
 | `getKnowledgeMetadata(input, deps)` | List normalized records or find exact document URL matches. |
 | `getValidationReport(input, deps)` | Generate the Markdown validation report. |
+| `retrieveKnowledgeDocumentTool(input, deps)` | Check an exact Registry record and read its document body only when retrieval is eligible. |
 
 Production calls omit `deps`. Tests inject fake token, Wiki, fetch, or registry functions so they run without credentials or network access.
 
@@ -163,9 +164,12 @@ Schema Freeze v1.0 listed Authority Level in the whitelist sub-schema. The proje
 Both `mcp:start` using stdio and `mcp:http` register:
 
 - `get_knowledge_metadata`
+- `retrieve_knowledge_document`
 - `get_knowledge_validation_report`
+- `resolve_document_conflict`
+- `submit_conflict_assessment`
 
-Both tools declare read-only, non-destructive, idempotent annotations. The metadata tool returns JSON structured content; the report tool returns Markdown plus a structured summary.
+These tools declare read-only, non-destructive, idempotent annotations. The metadata tool returns registry data, the retrieval tool applies the eligibility gate before returning a body, and the report tool returns Markdown plus a structured summary. Conflict tools are documented in [Conflict Taxonomy v1](conflict-taxonomy-v1.md).
 
 ## Current limits
 

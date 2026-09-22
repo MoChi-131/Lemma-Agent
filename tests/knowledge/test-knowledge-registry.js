@@ -373,8 +373,10 @@ test('knowledge MCP registrations are read-only and shared by both transports', 
   registerKnowledgeTools({ registerTool: (name, config, handler) => registrations.push({ name, config, handler }) });
   assert.deepEqual(registrations.map(item => item.name), [
     'get_knowledge_metadata',
+    'retrieve_knowledge_document',
     'get_knowledge_validation_report',
     'resolve_document_conflict',
+    'submit_conflict_assessment',
   ]);
   for (const item of registrations) {
     assert.equal(item.config.annotations.readOnlyHint, true);

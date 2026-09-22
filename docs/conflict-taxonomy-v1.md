@@ -1,6 +1,6 @@
 # 衝突分類法 v1
 
-狀態：草稿，待審核
+狀態：MVP 已實作，分類法仍待業務人員審核
 
 ## 目的
 
@@ -50,6 +50,8 @@
 就 `CON-10` 而言，Retrieval Policy 可在回答現行政府政策問題時優先採用 External Official 來源。不過，比較結果仍不可修改任何文件，也不可宣告某份內部文件為勝方。
 
 ## 比較方法
+
+![衝突比較流程](assets/conflict-pipeline.png)
 
 第一版原型每次只比較兩份文件。進入本階段的文件視為已由上游 Metadata／Retrieval 階段完成 required fields、enum、whitelist 及 retrieval eligibility 驗證。本階段不會再次讀取 Registry 或重複驗證 metadata，只處理文件正文的重複及衝突判斷。
 
@@ -122,11 +124,13 @@
 
 結合正規化相似度、已配對章節、已擷取事實及證據差異作出分類。每個結果必須解釋選擇該關係的原因。結果不明確時，應設定 `requires_human_review: true`，不可勉強作出高信心分類。
 
-### 7.1 AI 語境審核
+### 7.1 語境審核
 
-規則層發現 `Possible Conflict` 候選後，可把衝突事實及其附近小段文字交給 AI 判斷雙方是否涉及相同服務、條件及適用時期。系統不會把完整文件傳給 AI，也不會對 `Same`、`Complementary` 或 `Different Topic` 等沒有候選衝突的結果作額外 AI 呼叫。
+目前 production pipeline 不呼叫外部 AI API。規則層發現 `Possible Conflict` 候選後，系統回傳衝突事實及其附近小段文字，並建立 `Pending` 人工審核建議。審核人員或上層 MCP agent 可根據這些證據判斷雙方是否涉及相同服務、條件及適用時期。
 
-AI 必須使用嚴格的結構化輸出，結果只可為 `confirmed_conflict`、`no_conflict` 或 `uncertain`。文件證據一律視為不受信任資料，當中的指令不得執行。AI 不可批准治理決策或選出標準文件；已確認或不確定的衝突仍須建立 `Pending` 人工審核記錄。如 AI 不可用、逾時或回傳無效資料，系統須保留規則層結果及證據。
+語境評估不可自動批准治理決策或選出標準文件。正式結果仍須由獲授權人員確認。日後如重新引入可選的語意模型，應維持結構化輸出、只傳送必要證據、隔離錯誤，並在模型不可用時保留規則層結果。
+
+MCP agent 應先呼叫 `resolve_document_conflict` 取得規則結果及證據。如需要語境判斷，agent 可再呼叫 `submit_conflict_assessment`，提交關係分類、衝突類型及簡短證據說明。第二個工具會重新計算文件證據及雜湊，只產生 `Pending` 提案，不會寫入資料或批准決策，因此不需要 Lemma-Agent 的外部 AI API key。
 
 ### 8. 三份或以上文件
 
@@ -179,7 +183,7 @@ AI 必須使用嚴格的結構化輸出，結果只可為 `confirmed_conflict`�
 5. 如任何一份文件的雜湊改變，舊決策視為過期，重新比較並產生新的 `Pending` 審核記錄。
 6. 如沒有既有決策，只比較本次候選文件，不掃描及比較所有 Registry 文件。
 
-AI 可以提出關係、衝突類型、相似度及證據，但不可自行把 `Pending` 改為 `Approved`。正式的 `Use A`、`Use B`、`Use Both` 或 `Escalate` 決策必須由獲授權人員審核。
+系統或上層 MCP agent 可以提出關係、衝突類型、相似度及證據，但不可自行把 `Pending` 改為 `Approved`。正式的 `Use A`、`Use B`、`Use Both` 或 `Escalate` 決策必須由獲授權人員審核。
 
 目前 `conflict-decision-registry.js` 是唯讀原型，透過函數參數接收決策記錄。日後可加入 Lark Base adapter 讀取同一資料結構，而不改變比較規則。寫入 Lark Base 屬獨立的後續功能。
 

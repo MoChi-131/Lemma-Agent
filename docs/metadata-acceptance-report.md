@@ -1,5 +1,7 @@
 # Metadata Acceptance Report
 
+> Historical acceptance snapshot. For current commands and behavior, use [Knowledge Registry Reader and Validator](knowledge-registry.md).
+
 Date: 2026-09-17  
 Pilot baseline: 13 Lark Base records  
 Scope: Knowledge Registry metadata retrieval, validation, whitelist checks, and MCP output
@@ -92,4 +94,4 @@ The registry can be read and validated, but there is no completed report compari
 
 ## Conclusion
 
-The read-only Metadata MVP is accepted for the frozen 13-record pilot. The next handover task is the Wiki Inventory-to-Registry mapping, followed by the Conflict and Duplicate workstream.
+The read-only Metadata MVP was accepted for the frozen 13-record pilot. Wiki Inventory-to-Registry mapping remains a future task. Conflict and duplicate work continued separately under [Conflict Taxonomy v1](conflict-taxonomy-v1.md).

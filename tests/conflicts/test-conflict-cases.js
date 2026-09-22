@@ -5,9 +5,6 @@ const {
   compareDocuments,
   RELATIONSHIPS,
 } = require('../../integrations/lark/conflicts/document-comparison');
-const {
-  resolveDocumentConflictTool,
-} = require('../../tools/lark/conflicts/resolve-document-conflict');
 
 const allowedRelationships = new Set(Object.values(RELATIONSHIPS));
 
@@ -22,31 +19,11 @@ test('ground-truth fixture IDs and expectations are valid', () => {
 });
 
 for (const item of cases) {
-  test(`${item.id}: ${item.description}`, async () => {
+  test(`${item.id}: ${item.description}`, () => {
     const documentA = withUrl(item.document_a, `${item.id.toLowerCase()}-a`);
     const documentB = withUrl(item.document_b, `${item.id.toLowerCase()}-b`);
 
-    if (!item.ai_review) {
-      assertExpected(compareDocuments(documentA, documentB), item.expected);
-      return;
-    }
-
-    const ruleResult = compareDocuments(documentA, documentB);
-    assertExpected(ruleResult, item.rule_expected);
-
-    const result = await resolveDocumentConflictTool({
-      document_a_url: documentA.url,
-      document_b_url: documentB.url,
-      use_ai: true,
-    }, {
-      loadDocument: async (url, id) => ({ ...(url === documentA.url ? documentA : documentB), id }),
-      readDecisions: async () => [],
-      reviewConflict: async () => item.ai_review,
-    });
-
-    assertExpected(result, item.expected);
-    assert.equal(result.ai_review.verdict, item.ai_review.verdict);
-    assert.equal(result.deterministic_candidate.relationship, item.rule_expected.relationship);
+    assertExpected(compareDocuments(documentA, documentB), item.expected);
   });
 }
 

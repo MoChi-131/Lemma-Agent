@@ -50,20 +50,16 @@
   },
   {
     "id": "CON-08",
-    "description": "兩個不同服務的價格被規則誤判，AI 根據語境排除衝突",
+    "description": "兩個不同服務包含不同價格，規則層保守標記供人工排除誤報",
     "document_a": { "title": "標準住宅驗樓服務", "content": "本服務適用於 500 呎以下住宅，收費為 HK$2,380。\n服務包括基本設備測試、牆身空鼓檢查及門窗檢查。\n完成後提供電子驗樓報告，不包括任何冷氣機供應或安裝。" },
     "document_b": { "title": "分體式冷氣機供應及安裝", "content": "本服務提供一部指定型號分體式冷氣機及標準安裝，套裝收費為 HK$12,380。\n價格包括基本銅喉及去水工程，不包括棚架費。\n客戶須在安裝前確認電源和室外機位置。" },
-    "rule_expected": { "relationship": "Possible Conflict", "conflict_types": ["Price"] },
-    "ai_review": { "status": "completed", "verdict": "no_conflict", "relationship": "Complementary", "conflict_types": [], "explanation": "兩個價格分別屬於驗樓服務與冷氣機套裝，並非同一商品或服務的互斥事實。", "requires_human_review": false },
-    "expected": { "relationship": "Complementary", "conflict_types": [], "requires_human_review": false }
+    "expected": { "relationship": "Possible Conflict", "conflict_types": ["Price"], "requires_human_review": true }
   },
   {
     "id": "CON-09",
-    "description": "兩份價目表缺少生效日期及面積條件，AI 無法安全判定",
+    "description": "兩份價目表缺少生效日期及面積條件，保留人工審核",
     "document_a": { "title": "驗樓服務報價 A", "content": "標準驗樓服務收費為 HK$2,000。\n內容包括門窗、牆身及浴室檢查，報告以電子方式提供。\n文件未列明適用單位面積、生效日期或優惠條件。" },
     "document_b": { "title": "驗樓服務報價 B", "content": "標準驗樓服務收費為 HK$2,500。\n內容包括門窗、牆身及浴室檢查，報告以電子方式提供。\n文件未列明適用單位面積、生效日期或優惠條件。" },
-    "rule_expected": { "relationship": "Possible Conflict", "conflict_types": ["Price"] },
-    "ai_review": { "status": "completed", "verdict": "uncertain", "relationship": "Possible Conflict", "conflict_types": ["Price"], "explanation": "兩份文件似乎描述同一服務，但缺少生效日期、面積和優惠條件，需由負責人確認哪個價格有效。", "requires_human_review": true },
     "expected": { "relationship": "Possible Conflict", "conflict_types": ["Price"], "requires_human_review": true }
   },
   {
