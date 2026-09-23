@@ -17,10 +17,7 @@ async function main() {
     );
   }
 
-  const serverPath = path.join(
-    __dirname,
-    "lark-mcp-server.js"
-  );
+  const serverPath = path.resolve(__dirname, "../../runtime/servers/lark-mcp-server.js");
 
   const transport = new StdioClientTransport({
     command: process.execPath,

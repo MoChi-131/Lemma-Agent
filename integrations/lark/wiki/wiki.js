@@ -34,51 +34,6 @@ async function getWikiNode(wikiToken, { signal } = {}) {
   return data.data.node;
 }
 
-async function listWikiNodes({
-  spaceId,
-  parentNodeToken,
-  pageSize = 50,
-  pageToken,
-}) {
-  const accessToken = await getTenantAccessToken();
-
-  const params = new URLSearchParams();
-
-  if (parentNodeToken) {
-    params.set("parent_node_token", parentNodeToken);
-  }
-
-  if (pageSize) {
-    params.set("page_size", String(pageSize));
-  }
-
-  if (pageToken) {
-    params.set("page_token", pageToken);
-  }
-
-  const response = await fetch(
-    `https://open.larksuite.com/open-apis/wiki/v2/spaces/${spaceId}/nodes?${params.toString()}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok || data.code !== 0) {
-    throw new Error(
-      `List Wiki nodes failed: ${JSON.stringify(data)}`
-    );
-  }
-
-  return {
-    items: data.data?.items || [],
-    hasMore: data.data?.has_more || false,
-    pageToken: data.data?.page_token || null,
-  };
-}
 async function listWikiChildren({
   spaceId,
   parentNodeToken,
@@ -125,6 +80,5 @@ async function listWikiChildren({
 module.exports = {
   extractWikiToken,
   getWikiNode,
-  listWikiNodes,
   listWikiChildren,
 };

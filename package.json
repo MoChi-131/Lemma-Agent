@@ -1,8 +1,8 @@
 {
   "name": "lemma-agent",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Governed Lark knowledge retrieval through MCP",
+  "main": "runtime/servers/lark-mcp-server.js",
   "directories": {
     "doc": "docs"
   },

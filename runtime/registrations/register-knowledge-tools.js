@@ -4,10 +4,27 @@ const { retrieveKnowledgeDocumentTool } = require('../../tools/lark/knowledge/re
 const { searchKnowledgeRegistryTool } = require('../../tools/lark/knowledge/search-knowledge-registry');
 const { checkExternalUrls, getApprovedWebDomains } = require('../../tools/lark/knowledge/external-web-governance');
 
+const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+};
+
+function jsonResult(result, { isError = false } = {}) {
+  return {
+    ...(isError ? { isError: true } : {}),
+    content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+    structuredContent: result,
+  };
+}
+
+function errorResult(message) {
+  return { isError: true, content: [{ type: 'text', text: message }] };
+}
+
 /** Register the same read-only registry tools on stdio and HTTP MCP servers. */
 function registerKnowledgeTools(server) {
-  const readOnly = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
-
   server.registerTool('get_knowledge_metadata', {
     title: 'Get Knowledge Metadata',
     description: 'Read registry metadata without document content or Base changes. retrieval_eligible applies the frozen completeness, Scope, Status, Authority and external-whitelist rules. For a user question about document facts, do not answer from metadata: when eligible, call retrieve_knowledge_document with the exact source_url.',
@@ -16,13 +33,12 @@ function registerKnowledgeTools(server) {
       registryUrl: z.string().url().optional().describe('Optional registry Base URL override'),
       whitelistUrl: z.string().url().optional().describe('Optional whitelist table URL override'),
     },
-    annotations: readOnly,
+    annotations: READ_ONLY,
   }, async input => {
     try {
-      const result = await getKnowledgeMetadata(input);
-      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }], structuredContent: result };
+      return jsonResult(await getKnowledgeMetadata(input));
     } catch {
-      return { isError: true, content: [{ type: 'text', text: 'Knowledge metadata read failed. Check URL, credentials, permissions and Base access.' }] };
+      return errorResult('Knowledge metadata read failed. Check URL, credentials, permissions and Base access.');
     }
   });
 
@@ -38,19 +54,12 @@ function registerKnowledgeTools(server) {
       registryUrl: z.string().url().optional(),
       whitelistUrl: z.string().url().optional(),
     },
-    annotations: readOnly,
+    annotations: READ_ONLY,
   }, async input => {
     try {
-      const result = await searchKnowledgeRegistryTool(input);
-      return {
-        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-        structuredContent: result,
-      };
+      return jsonResult(await searchKnowledgeRegistryTool(input));
     } catch {
-      return {
-        isError: true,
-        content: [{ type: 'text', text: 'Knowledge Registry search failed. Check credentials, permissions and Base access.' }],
-      };
+      return errorResult('Knowledge Registry search failed. Check credentials, permissions and Base access.');
     }
   });
 
@@ -62,21 +71,13 @@ function registerKnowledgeTools(server) {
       registryUrl: z.string().url().optional().describe('Optional registry Base URL override'),
       whitelistUrl: z.string().url().optional().describe('Optional whitelist table URL override'),
     },
-    annotations: readOnly,
+    annotations: READ_ONLY,
   }, async input => {
     try {
       const result = await retrieveKnowledgeDocumentTool(input);
-      return {
-        ...(result.success ? {} : { isError: true }),
-        content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
-        structuredContent: result,
-      };
+      return jsonResult(result, { isError: !result.success });
     } catch (error) {
-      return {
-        isError: true,
-        content: [{ type: 'text', text: error instanceof Error
-          ? error.message : 'Knowledge document retrieval failed.' }],
-      };
+      return errorResult(error instanceof Error ? error.message : 'Knowledge document retrieval failed.');
     }
   });
 
@@ -87,13 +88,12 @@ function registerKnowledgeTools(server) {
       query: z.string().trim().min(1).max(500).optional().describe('The intended web-search query'),
       whitelistUrl: z.string().url().optional().describe('Optional whitelist table URL override'),
     },
-    annotations: readOnly,
+    annotations: READ_ONLY,
   }, async input => {
     try {
-      const result = await getApprovedWebDomains(input);
-      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }], structuredContent: result };
+      return jsonResult(await getApprovedWebDomains(input));
     } catch {
-      return { isError: true, content: [{ type: 'text', text: 'Approved web-domain lookup failed. Do not perform external web search.' }] };
+      return errorResult('Approved web-domain lookup failed. Do not perform external web search.');
     }
   });
 
@@ -104,16 +104,14 @@ function registerKnowledgeTools(server) {
       urls: z.array(z.string()).min(1).max(50).describe('Candidate or final URLs to validate'),
       whitelistUrl: z.string().url().optional().describe('Optional whitelist table URL override'),
     },
-    annotations: readOnly,
+    annotations: READ_ONLY,
   }, async input => {
     try {
-      const result = await checkExternalUrls(input);
-      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }], structuredContent: result };
+      return jsonResult(await checkExternalUrls(input));
     } catch {
-      return { isError: true, content: [{ type: 'text', text: 'External URL whitelist check failed. Do not use or cite these URLs.' }] };
+      return errorResult('External URL whitelist check failed. Do not use or cite these URLs.');
     }
   });
-
 }
 
 module.exports = { registerKnowledgeTools };

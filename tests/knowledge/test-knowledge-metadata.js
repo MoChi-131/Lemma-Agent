@@ -1,7 +1,6 @@
 // Live read-only CLI, not an offline unit test. Run from Lemma-Agent so dotenv
 // finds .env. Existing terminal environment values take precedence over .env.
 require('dotenv').config({ quiet: true });
-const { getKnowledgeMetadata } = require('../../integrations/lark/knowledge/knowledge-registry');
 const { getValidationReport } = require('../../integrations/lark/knowledge/knowledge-validation');
 const fs = require('fs');
 const path = require('path');
