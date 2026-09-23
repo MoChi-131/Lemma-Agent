@@ -37,14 +37,14 @@ If a relevant Registry result exists, do not search the Wiki or web for confirma
 
 ### Exact Lark URL
 
-Call `retrieve_knowledge_document` directly. It checks the Registry and retrieval eligibility before reading the body. Answer from `content`, never from metadata alone.
+Call `retrieve_knowledge_document` directly. It checks the Registry and retrieval eligibility before reading the body. Answer from `content`, `tables`, `embedded_sheets` and successful PDF `attachments`, never from metadata alone.
 
 ### Topic, product or service question
 
 1. Call `search_knowledge_registry` with one to three distinctive terms.
 2. Choose the most relevant result where `retrieval_eligible=true`.
 3. Call `retrieve_knowledge_document` with its exact `source_url`.
-4. Answer from the retrieved body and cite the source URL.
+4. Answer from the retrieved body, native tables, embedded Sheets or extracted PDF text and cite the source URL and attachment name when applicable.
 5. Call `search_lark_wiki` only when the Registry has no relevant result or the user requests other documents.
 
 Do not crawl a Wiki tree for a normal fact question. Use `crawl_lark_wiki_tree` or `read_lark_wiki_subtree` only for inventory, coverage checks or an explicit multi-document request.

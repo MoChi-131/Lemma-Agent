@@ -1,6 +1,7 @@
 const { extractWikiToken, getWikiNode } = require("../wiki/wiki");
 const {
   readDocument,
+  readDocumentData,
 } = require("./documents");
 
 async function resolveDocument(url) {
@@ -29,7 +30,13 @@ async function readLarkDocument(url) {
   return readDocument(documentId);
 }
 
+async function readLarkDocumentData(url) {
+  const { documentId } = await resolveDocument(url);
+  return readDocumentData(documentId);
+}
+
 module.exports = {
   resolveDocument,
   readLarkDocument,
+  readLarkDocumentData,
 };

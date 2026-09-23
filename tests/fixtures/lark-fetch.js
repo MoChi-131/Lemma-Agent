@@ -24,6 +24,8 @@ global.fetch = async (input, options = {}) => {
     data = url.pathname.includes("/denieddoc/")
       ? { code: 999, msg: "PRIVATE upstream detail" }
       : { code: 0, data: { content: "Fixture document body" } };
+  } else if (url.pathname.endsWith("/blocks")) {
+    data = { code: 0, data: { items: [], has_more: false } };
   } else {
     throw Error("Unexpected API path");
   }

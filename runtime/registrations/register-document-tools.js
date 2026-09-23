@@ -6,7 +6,7 @@ const {
 function registerDocumentTools(server) {
   server.registerTool('read_lark_document', {
     title: 'Read Lark Document',
-    description: 'Read raw content from a known Lark Wiki URL. Prefer retrieve_knowledge_document for governed knowledge because it enforces registry retrieval eligibility first.',
+    description: 'Read text, native tables, embedded Sheets and supported PDF attachments from a known Lark Wiki document. Prefer retrieve_knowledge_document for governed knowledge because it enforces registry retrieval eligibility first.',
     inputSchema: {
       url: z.string().url().describe('Lark Wiki document URL'),
     },

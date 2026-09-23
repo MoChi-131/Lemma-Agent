@@ -15,12 +15,16 @@ test('returns content for a registered retrieval-eligible document', async () =>
     }),
     readLarkDocument: async () => {
       bodyRead = true;
-      return { content: 'Panasonic 420mm product information' };
+      return {
+        content: 'Panasonic 420mm product information',
+        tables: [{ rows: [['Model', 'Size'], ['Panasonic', '420mm']] }],
+      };
     },
   });
 
   assert.equal(result.success, true);
   assert.equal(result.content, 'Panasonic 420mm product information');
+  assert.deepEqual(result.tables[0].rows[1], ['Panasonic', '420mm']);
   assert.equal(result.metadata.title, 'Product guide');
   assert.equal(bodyRead, true);
 });

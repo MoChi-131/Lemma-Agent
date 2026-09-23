@@ -65,7 +65,7 @@ function registerKnowledgeTools(server) {
 
   server.registerTool('retrieve_knowledge_document', {
     title: 'Retrieve Knowledge Document',
-    description: 'Retrieve the body of one registered document by exact URL. This tool first checks Knowledge Registry metadata and returns content only when retrieval_eligible is true. Use it after search_knowledge_registry selects a candidate, or for an exact URL. Cite the returned URL and answer from content, not metadata.',
+    description: 'Retrieve text, native tables, embedded Sheets and supported PDF attachments from one registered document by exact URL. This tool checks retrieval_eligible first. Use it after search_knowledge_registry or for an exact URL. Cite the source and answer from retrieved content, never metadata alone.',
     inputSchema: {
       url: z.string().url().describe('Exact Lark Wiki document URL from the registry or a Wiki search result'),
       registryUrl: z.string().url().optional().describe('Optional registry Base URL override'),

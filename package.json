@@ -14,7 +14,7 @@
     "test:conflict-decisions": "node --test --test-isolation=none tests/conflicts/test-conflict-decision-registry.js",
     "test:resolve-conflict": "node --test --test-isolation=none tests/conflicts/test-resolve-document-conflict.js",
     "test:conflicts": "node --test --test-isolation=none tests/conflicts/*.js",
-    "test": "node --test --test-isolation=none tests/wiki/test-wiki-tree-tool.js tests/wiki/test-wiki-subtree-tool.js tests/wiki/test-wiki-tree-mcp.js tests/wiki/test-wiki-search.js",
+    "test": "node --test --test-isolation=none tests/wiki/test-document-tables.js tests/wiki/test-wiki-tree-tool.js tests/wiki/test-wiki-subtree-tool.js tests/wiki/test-wiki-tree-mcp.js tests/wiki/test-wiki-search.js",
     "test:wiki-subtree": "node --test --test-isolation=none tests/wiki/test-wiki-subtree-tool.js",
     "test:wiki-subtree:mcp": "node --test --test-isolation=none tests/wiki/test-wiki-tree-mcp.js",
     "test:wiki-subtree:remote": "node tests/wiki/test-wiki-subtree-remote.js",
@@ -44,6 +44,7 @@
     "@modelcontextprotocol/sdk": "^1.30.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "pdf-parse": "^1.1.1",
     "zod": "^3.25.76"
   }
 }

@@ -1,5 +1,5 @@
 const {
-  readLarkDocument,
+  readLarkDocumentData,
 } = require("../../../integrations/lark/core/client");
 
 async function readLarkDocumentTool(input) {
@@ -7,7 +7,7 @@ async function readLarkDocumentTool(input) {
     throw new Error("url is required");
   }
 
-  const content = await readLarkDocument(input.url);
+  const { content, tables, embedded_sheets: embeddedSheets, attachments } = await readLarkDocumentData(input.url);
 
   return {
     success: true,
@@ -15,6 +15,9 @@ async function readLarkDocumentTool(input) {
     action: "read_document",
     url: input.url,
     content,
+    tables,
+    embedded_sheets: embeddedSheets,
+    attachments,
   };
 }
 
