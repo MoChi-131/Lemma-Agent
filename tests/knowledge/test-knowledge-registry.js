@@ -373,6 +373,8 @@ test('knowledge MCP registrations are read-only and shared by both transports', 
     'get_knowledge_metadata',
     'search_knowledge_registry',
     'retrieve_knowledge_document',
+    'get_approved_web_domains',
+    'check_external_urls',
   ]);
   for (const item of registrations) {
     assert.equal(item.config.annotations.readOnlyHint, true);

@@ -2,6 +2,7 @@ const { z } = require('zod');
 const { getKnowledgeMetadata } = require('../../integrations/lark/knowledge/knowledge-registry');
 const { retrieveKnowledgeDocumentTool } = require('../../tools/lark/knowledge/retrieve-knowledge-document');
 const { searchKnowledgeRegistryTool } = require('../../tools/lark/knowledge/search-knowledge-registry');
+const { checkExternalUrls, getApprovedWebDomains } = require('../../tools/lark/knowledge/external-web-governance');
 
 /** Register the same read-only registry tools on stdio and HTTP MCP servers. */
 function registerKnowledgeTools(server) {
@@ -76,6 +77,40 @@ function registerKnowledgeTools(server) {
         content: [{ type: 'text', text: error instanceof Error
           ? error.message : 'Knowledge document retrieval failed.' }],
       };
+    }
+  });
+
+  server.registerTool('get_approved_web_domains', {
+    title: 'Get Approved Web Domains',
+    description: 'Required before external web search. Returns only domains with Approved status in the external whitelist. Restrict the web search to these domains; if none are approved, do not search the web.',
+    inputSchema: {
+      query: z.string().trim().min(1).max(500).optional().describe('The intended web-search query'),
+      whitelistUrl: z.string().url().optional().describe('Optional whitelist table URL override'),
+    },
+    annotations: readOnly,
+  }, async input => {
+    try {
+      const result = await getApprovedWebDomains(input);
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }], structuredContent: result };
+    } catch {
+      return { isError: true, content: [{ type: 'text', text: 'Approved web-domain lookup failed. Do not perform external web search.' }] };
+    }
+  });
+
+  server.registerTool('check_external_urls', {
+    title: 'Check External URLs',
+    description: 'Required after external web search and after redirects. Allows only HTTPS URLs whose hostname exactly matches an Approved whitelist domain or its real subdomain. Discard every blocked result.',
+    inputSchema: {
+      urls: z.array(z.string()).min(1).max(50).describe('Candidate or final URLs to validate'),
+      whitelistUrl: z.string().url().optional().describe('Optional whitelist table URL override'),
+    },
+    annotations: readOnly,
+  }, async input => {
+    try {
+      const result = await checkExternalUrls(input);
+      return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }], structuredContent: result };
+    } catch {
+      return { isError: true, content: [{ type: 'text', text: 'External URL whitelist check failed. Do not use or cite these URLs.' }] };
     }
   });
 

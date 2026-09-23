@@ -42,7 +42,7 @@ async function main() {
     assert.ok(session, 'Expected a stateful HTTP MCP session');
 
     const toolNames = (await client.listTools()).tools.map(tool => tool.name);
-    for (const name of ['get_knowledge_metadata', 'search_knowledge_registry', 'retrieve_knowledge_document']) {
+    for (const name of ['get_knowledge_metadata', 'search_knowledge_registry', 'retrieve_knowledge_document', 'get_approved_web_domains', 'check_external_urls']) {
       assert.ok(toolNames.includes(name), `Missing tool: ${name}`);
     }
     const hasValidationTool = toolNames.includes('get_knowledge_validation_report');

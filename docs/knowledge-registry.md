@@ -165,8 +165,12 @@ Both `mcp:start` using stdio and `mcp:http` register these retrieval tools by de
 - `get_knowledge_metadata`
 - `search_knowledge_registry`
 - `retrieve_knowledge_document`
+- `get_approved_web_domains`
+- `check_external_urls`
 
 These tools declare read-only, non-destructive, idempotent annotations. Normal topic retrieval starts with `search_knowledge_registry`; a relevant result then goes to `retrieve_knowledge_document`. `search_lark_wiki` is a fallback only when the Registry has no relevant result or the user explicitly requests other documents.
+
+External web search must first call `get_approved_web_domains` and restrict the search to those hosts. Every candidate or redirected final URL must then pass `check_external_urls` before the agent reads, uses or cites it. Both checks fail closed if the whitelist cannot be read.
 
 Set `ENABLE_VALIDATION_TOOLS=true` only on the Knowledge Base Management Agent to expose `get_knowledge_validation_report`. Full conflict tools are also optional; see [Conflict Taxonomy v1](conflict-taxonomy-v1.md).
 

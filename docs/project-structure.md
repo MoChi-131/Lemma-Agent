@@ -12,7 +12,7 @@ integrations/lark/
 tools/lark/
   documents/    Raw document read and append handlers
   wiki/         Wiki tree, subtree, metadata and search handlers
-  knowledge/    Registry-first discovery and governed content retrieval
+  knowledge/    Registry-first discovery, governed retrieval and external URL authorization
   conflicts/    Conflict resolution and assessment handlers
 
 runtime/

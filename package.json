@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test:knowledge-metadata": "node tests/knowledge/test-knowledge-metadata.js",
-    "test:knowledge-registry": "node --test --test-isolation=none tests/knowledge/test-knowledge-registry.js tests/knowledge/test-retrieve-knowledge-document.js tests/knowledge/test-search-knowledge-registry.js",
+    "test:knowledge-registry": "node --test --test-isolation=none tests/knowledge/test-knowledge-registry.js tests/knowledge/test-retrieve-knowledge-document.js tests/knowledge/test-search-knowledge-registry.js tests/knowledge/test-external-web-governance.js",
     "test:knowledge-mcp:remote": "node tests/knowledge/test-knowledge-mcp-remote.js",
     "test:document-comparison": "node --test --test-isolation=none tests/conflicts/test-document-comparison.js",
     "test:conflict-decisions": "node --test --test-isolation=none tests/conflicts/test-conflict-decision-registry.js",

@@ -44,6 +44,17 @@ When an eligible Lark document contains a Google Drive, Google Docs, Google Shee
 
 Do not search the user’s entire Drive merely because a Drive connector exists. Search Drive directly only when the user asks, or when a retrieved Lark source points to a relevant Drive file.
 
+### External web search
+
+External web search is fail-closed and may use only approved whitelist domains:
+
+1. Call `get_approved_web_domains` before searching.
+2. Restrict the web search to the returned domains. If the list is empty or the tool fails, do not search the web.
+3. After search and after following redirects, call `check_external_urls` with every candidate final URL.
+4. Use and cite only results where `approved=true`. Discard Pending, Suspended, Rejected, unmatched, HTTP, malformed and lookalike-domain URLs.
+
+Never treat a search-engine result, page title or substring match as whitelist approval.
+
 ### Minimum conflict check
 
 While answering, flag an obvious contradiction when retrieved sources give different prices, dates, product specifications, contact details or required steps for the same conditions. Quote the competing evidence and source URLs, label it `Possible Conflict`, and refer it to the Knowledge Base Management Agent for full assessment. Do not run pairwise conflict analysis, select a winner or delay a normal answer to search for every possible conflict.

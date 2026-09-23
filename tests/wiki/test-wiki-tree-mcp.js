@@ -54,7 +54,7 @@ test("stdio discovers and calls crawl while preserving read tool", { timeout: 15
   });
   try {
     await client.connect(transport);
-    assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(), ["crawl_lark_wiki_tree", "get_knowledge_metadata", "get_lark_wiki_metadata", "read_lark_document", "read_lark_wiki_subtree", "retrieve_knowledge_document", "search_knowledge_registry", "search_lark_wiki"]);
+    assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(), ["check_external_urls", "crawl_lark_wiki_tree", "get_approved_web_domains", "get_knowledge_metadata", "get_lark_wiki_metadata", "read_lark_document", "read_lark_wiki_subtree", "retrieve_knowledge_document", "search_knowledge_registry", "search_lark_wiki"]);
     await checkCrawl(client);
     await checkSubtree(client);
     const metadata = await client.callTool({ name: "get_lark_wiki_metadata", arguments: { url } });
@@ -96,7 +96,7 @@ test("HTTP session survives discovery, crawl and existing tools; DELETE removes 
     const session = transport.sessionId;
     assert.ok(session);
     assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(),
-      ["crawl_lark_wiki_tree", "get_knowledge_metadata", "get_lark_wiki_metadata", "list_lark_wiki_children", "read_lark_document", "read_lark_wiki_subtree", "retrieve_knowledge_document", "search_knowledge_registry", "search_lark_wiki"]);
+      ["check_external_urls", "crawl_lark_wiki_tree", "get_approved_web_domains", "get_knowledge_metadata", "get_lark_wiki_metadata", "list_lark_wiki_children", "read_lark_document", "read_lark_wiki_subtree", "retrieve_knowledge_document", "search_knowledge_registry", "search_lark_wiki"]);
     await checkCrawl(client);
     await checkSubtree(client);
     const metadata = await client.callTool({ name: "get_lark_wiki_metadata", arguments: { url } });
