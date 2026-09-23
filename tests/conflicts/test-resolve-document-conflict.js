@@ -60,15 +60,15 @@ test('rejects an HTTP Wiki URL before calling Lark', async () => {
   );
 });
 
-test('registerKnowledgeTools exposes resolve_document_conflict', () => {
+test('registerConflictTools exposes resolve_document_conflict', () => {
   const names = [];
   const definitions = new Map();
   const server = { registerTool: (name, definition) => {
     names.push(name);
     definitions.set(name, definition);
   } };
-  const { registerKnowledgeTools } = require('../../runtime/registrations/register-knowledge-tools');
-  registerKnowledgeTools(server);
+  const { registerConflictTools } = require('../../runtime/registrations/register-conflict-tools');
+  registerConflictTools(server);
   assert.ok(names.includes('resolve_document_conflict'));
   assert.equal('use_ai' in definitions.get('resolve_document_conflict').inputSchema, false);
 });

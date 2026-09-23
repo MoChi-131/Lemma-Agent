@@ -3,15 +3,14 @@ const assert = require('node:assert/strict');
 const {
   readKnowledgeRegistry,
   getKnowledgeMetadata,
-  getValidationReport,
-  validateRecord,
   normalizeDate,
   normalizeDomain,
   domainMatches,
   isEmptyRecord,
-  enums,
 } = require('../../integrations/lark/knowledge/knowledge-registry');
+const { getValidationReport, validateRecord, attachValidation, enums } = require('../../integrations/lark/knowledge/knowledge-validation');
 const { registerKnowledgeTools } = require('../../runtime/registrations/register-knowledge-tools');
+const { registerValidationTools } = require('../../runtime/registrations/register-validation-tools');
 // Inject fake API functions: these tests need no credentials and make no network calls.
 test('reads paginated Base through Wiki using only GET requests', async () => {
   // Two pages verify cursor following and that a view cannot hide lookup records.
@@ -36,7 +35,7 @@ test('lookup preserves missing fields and Pending; absent row differs from failu
   assert.equal(result.found, true);
   assert.equal(result.documents[0].version, null);
   assert.ok(result.documents[0].missing_fields.includes('version'));
-  assert.equal(result.documents[0].validation_status, 'invalid');
+  assert.equal(result.documents[0].metadata_complete, false);
   assert.equal((await getKnowledgeMetadata({ url: 'https://example.com/missing' }, { read })).found, false);
   const external = await getKnowledgeMetadata({}, { read: async () => [{ fields: { Scope: 'External Reference', 'Whitelist Status': 'Pending' } }] });
   assert.equal(external.documents[0].whitelist_valid, false);
@@ -46,7 +45,6 @@ test('lookup preserves missing fields and Pending; absent row differs from failu
     'Lark URL': 'https://example.com/guide',
   } }] });
   // Complete metadata can still describe an unapproved external source.
-  assert.equal(complete.documents[0].validation_status, 'valid');
   assert.equal(complete.documents[0].metadata_complete, true);
   assert.equal(complete.documents[0].whitelist_valid, false);
   assert.equal(complete.documents[0].retrieval_eligible, false);
@@ -176,7 +174,7 @@ test('Suspended is a valid whitelist status but blocks external retrieval', asyn
 
   assert.equal(doc.whitelist_valid, false);
   assert.equal(doc.retrieval_eligible, false);
-  assert.equal(doc.validation_report.checks.whitelist_status_value.pass, true);
+  assert.equal(attachValidation(doc).validation_report.checks.whitelist_status_value.pass, true);
 });
 test('external retrieval combines whitelist status with metadata Authority Level and fails closed', async () => {
   const cases = [
@@ -250,7 +248,7 @@ test('validates enum values for Scope, Document Type, Status, Authority Level', 
     'Last Reviewed Date': '2024-01-15',
   } };
   
-  const result = await getKnowledgeMetadata({}, { read: async () => [record] });
+  const result = await getValidationReport({}, { read: async () => [record] });
   const doc = result.documents[0];
   
   // Valid enums should pass
@@ -261,7 +259,7 @@ test('validates enum values for Scope, Document Type, Status, Authority Level', 
   
   // Test invalid enum
   const badRecord = { ...record, fields: { ...record.fields, Status: 'InvalidStatus' } };
-  const badResult = await getKnowledgeMetadata({}, { read: async () => [badRecord] });
+  const badResult = await getValidationReport({}, { read: async () => [badRecord] });
   assert.equal(badResult.documents[0].validation_report.checks.status_value.pass, false);
 });
 test('Schema Freeze v1.0 required fields exclude owner, review, and approval-workflow fields', async () => {
@@ -334,7 +332,7 @@ test('dictionary enums and Scope-specific document types are exact', () => {
   assert.equal(invalid.checks.document_type_value.pass, false);
 });
 test('v1.0 ignores excluded review-cycle Base columns', async () => {
-  const result = await getKnowledgeMetadata({}, { read: async () => [{ record_id: 'excluded-fields', fields: {
+  const result = await getValidationReport({}, { read: async () => [{ record_id: 'excluded-fields', fields: {
     Title: 'FAQ', 'Lark URL': 'https://example.com/faq', Scope: 'Knowledge Base',
     'Primary Domain': 'Service', 'Document Type': 'FAQ',
     'Authority Level': 'Internal Official', Status: 'Draft',
@@ -354,7 +352,7 @@ test('optional Approved Date cannot be in the future', async () => {
     Scope: 'Knowledge Base', 'Primary Domain': 'Service', 'Document Type': 'Guide',
     'Authority Level': 'Internal Official', Status: 'Approved',
   };
-  const result = await getKnowledgeMetadata({}, { read: async () => [
+  const result = await getValidationReport({}, { read: async () => [
     { record_id: 'past', fields: { ...baseFields, 'Approved Date': '2000-01-01' } },
     { record_id: 'future', fields: { ...baseFields, 'Approved Date': '2999-01-01' } },
     { record_id: 'missing', fields: baseFields },
@@ -373,13 +371,17 @@ test('knowledge MCP registrations are read-only and shared by both transports', 
   registerKnowledgeTools({ registerTool: (name, config, handler) => registrations.push({ name, config, handler }) });
   assert.deepEqual(registrations.map(item => item.name), [
     'get_knowledge_metadata',
+    'search_knowledge_registry',
     'retrieve_knowledge_document',
-    'get_knowledge_validation_report',
-    'resolve_document_conflict',
-    'submit_conflict_assessment',
   ]);
   for (const item of registrations) {
     assert.equal(item.config.annotations.readOnlyHint, true);
     assert.equal(item.config.annotations.destructiveHint, false);
   }
+});
+test('management validation tool is registered separately', () => {
+  const registrations = [];
+  registerValidationTools({ registerTool: (name, config) => registrations.push({ name, config }) });
+  assert.deepEqual(registrations.map(item => item.name), ['get_knowledge_validation_report']);
+  assert.equal(registrations[0].config.annotations.readOnlyHint, true);
 });

@@ -1,6 +1,6 @@
-# Knowledge Registry Reader and Validator
+# Knowledge Registry Reader and Retrieval Gate
 
-This module reads the Supermama Knowledge Registry from Lark Base without modifying records. Its required-field rules follow `Supermama_Knowledge_Registry_Schema_Freeze_v1.0` and the read-only boundary in the handover.
+The default retrieval module reads the Supermama Knowledge Registry from Lark Base without modifying records. It keeps only the completeness, whitelist and eligibility checks needed to select safe retrieval candidates. Detailed dictionary validation is isolated for the Knowledge Base Management Agent.
 
 ## Commands
 
@@ -33,11 +33,12 @@ For compatibility with the live pilot table, a URL in `Source Name` is accepted 
 | `readKnowledgeRegistry(options, deps)` | Authenticate, resolve a Wiki-hosted Base, and read every record page. |
 | `readExternalWhitelist(options, deps)` | Read the independently maintained external-domain whitelist table. |
 | `normalizeDate(value)` | Normalize optional approval and project dates to `YYYY-MM-DD`. |
-| `validateRecord(metadata, missingFields, recordId)` | Produce Expected, Actual, PASS/FAIL/WARNING, and Evidence checks. |
-| `normalizeRecord(record)` | Map Base fields, find required-field gaps, validate, and set record status. |
+| `normalizeRecord(record)` | Map Base fields and calculate completeness, whitelist state and retrieval eligibility. |
 | `getKnowledgeMetadata(input, deps)` | List normalized records or find exact document URL matches. |
-| `getValidationReport(input, deps)` | Generate the Markdown validation report. |
+| `searchKnowledgeRegistryTool(input, deps)` | Rank lightweight metadata matches before any Wiki content search. |
 | `retrieveKnowledgeDocumentTool(input, deps)` | Check an exact Registry record and read its document body only when retrieval is eligible. |
+
+Detailed checks live in `integrations/lark/knowledge/knowledge-validation.js`. Its `validateRecord` and `getValidationReport` functions are intended for the Knowledge Base Management Agent and are excluded from the default MCP server.
 
 Production calls omit `deps`. Tests inject fake token, Wiki, fetch, or registry functions so they run without credentials or network access.
 
@@ -141,8 +142,6 @@ Each item in `documents` follows the flat Schema Freeze v1.0 contract. Registry 
 | `missing_fields: []` | No required-field gaps were found. Optional fields can still be empty. |
 | `metadata_complete: true` | All fields required by Schema Freeze v1.0 are present. |
 | `whitelist_valid` | `true` or `false` for External Reference; `null` for other scopes. |
-| `validation_status: valid` | No applicable error-level check failed. Warnings may remain. |
-| `validation_status: invalid` | At least one required-field, enum, format, or consistency error failed. |
 | `retrieval_eligible: true` | The complete record passed its Scope-specific Status, Authority, and whitelist gate. |
 | `retrieval_eligible: false` | The record is incomplete or blocked by its Scope, Status, Authority, or whitelist result. |
 | `whitelist_check` | Matching evidence: document domain, matched domain, source name, status, and whitelist record ID. |
@@ -161,15 +160,15 @@ Schema Freeze v1.0 listed Authority Level in the whitelist sub-schema. The proje
 
 ## MCP tools
 
-Both `mcp:start` using stdio and `mcp:http` register:
+Both `mcp:start` using stdio and `mcp:http` register these retrieval tools by default:
 
 - `get_knowledge_metadata`
+- `search_knowledge_registry`
 - `retrieve_knowledge_document`
-- `get_knowledge_validation_report`
-- `resolve_document_conflict`
-- `submit_conflict_assessment`
 
-These tools declare read-only, non-destructive, idempotent annotations. The metadata tool returns registry data, the retrieval tool applies the eligibility gate before returning a body, and the report tool returns Markdown plus a structured summary. Conflict tools are documented in [Conflict Taxonomy v1](conflict-taxonomy-v1.md).
+These tools declare read-only, non-destructive, idempotent annotations. Normal topic retrieval starts with `search_knowledge_registry`; a relevant result then goes to `retrieve_knowledge_document`. `search_lark_wiki` is a fallback only when the Registry has no relevant result or the user explicitly requests other documents.
+
+Set `ENABLE_VALIDATION_TOOLS=true` only on the Knowledge Base Management Agent to expose `get_knowledge_validation_report`. Full conflict tools are also optional; see [Conflict Taxonomy v1](conflict-taxonomy-v1.md).
 
 ## Current limits
 

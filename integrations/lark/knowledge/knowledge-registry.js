@@ -1,4 +1,4 @@
-const DEFAULT_REGISTRY_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblS0JtYp4Tx3BKB&view=vewPu2Lfe7';
+const DEFAULT_REGISTRY_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblhBZGzkAfGXIzw&view=vewPu2Lfe7';
 const DEFAULT_WHITELIST_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblxxLSOp5lg3z9g';
 
 const LARK_HOST_PATTERN = /^[a-z0-9.-]+\.larksuite\.com$/i;
@@ -43,46 +43,6 @@ const fields = {
 
 const listFieldKeys = new Set(['tags', 'owner_person', 'lark_owner']);
 const dateFieldKeys = new Set(['approved_date', 'project_start_date', 'project_end_date']);
-
-const documentTypesByScope = {
-  'Knowledge Base': [
-    'SOP',
-    'FAQ',
-    'Pricing',
-    'Policy',
-    'Guide',
-    'Product Spec',
-    'Service Info',
-    'Official Notice',
-    'Knowledge Article',
-    'Reference',
-    'Template',
-  ],
-  Workspace: [
-    'Meeting Notes',
-    'Analysis',
-    'Research',
-    'Planning',
-    'Campaign',
-    'Architecture',
-    'Design',
-    'Development Doc',
-    'Test Doc',
-    'Project Doc',
-    'Report',
-  ],
-  'External Reference': ['Official Notice', 'Policy', 'Guide', 'Reference'],
-};
-
-const enums = {
-  scope: ['Knowledge Base', 'Workspace', 'External Reference'],
-  primary_domain: ['Service', 'Property', 'Product', 'Customer', 'Marketing', 'Operation', 'IT', 'Company', 'Sales'],
-  document_type: [...new Set(Object.values(documentTypesByScope).flat())],
-  document_type_by_scope: documentTypesByScope,
-  status: ['Draft', 'Review', 'Approved', 'Archived'],
-  authority_level: ['Internal Official', 'External Official', 'Reference', 'Unverified'],
-  whitelist_status: ['Pending', 'Approved', 'Suspended', 'Rejected'],
-};
 
 const requiredByScope = {
   // Schema Freeze v1.0 treats Owner Person as recommended and excludes review
@@ -386,136 +346,7 @@ function normalizeDateObject(value) {
 }
 
 /**
- * Validate one record against the frozen v1.0 required-field and enum rules.
- * Returns Expected, Actual, PASS/FAIL/WARNING, and Evidence for each check.
- */
-function validateRecord(metadata, missingFields, recordId) {
-  const report = createValidationReport(recordId);
-
-  addRequiredFieldsCheck(report, missingFields);
-  addEnumChecks(report, metadata);
-  addApprovedDateCheck(report, metadata.approved_date);
-
-  return report;
-}
-
-/** An optional approval date is valid only when it is not later than today. */
-function addApprovedDateCheck(report, approvedDate) {
-  if (!approvedDate) return;
-
-  const today = getLocalIsoDate();
-  const pass = approvedDate <= today;
-
-  addCheck(report, 'approved_date_not_future', {
-    expected: `on or before ${today}`,
-    actual: approvedDate,
-    pass,
-    evidence: pass
-      ? `Approved Date ${approvedDate} is not in the future`
-      : `Approved Date ${approvedDate} is later than today (${today})`,
-  });
-}
-
-function getLocalIsoDate(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function createValidationReport(recordId) {
-  return {
-    record_id: recordId || '(unknown)',
-    checks: {},
-    summary: { passed: 0, failed: 0, warnings: 0 },
-  };
-}
-
-function addCheck(report, name, { expected, actual, pass, evidence, severity = 'error' }) {
-  report.checks[name] = { expected, actual, pass, evidence, severity };
-
-  if (pass) report.summary.passed++;
-  else if (severity === 'warning') report.summary.warnings++;
-  else report.summary.failed++;
-}
-
-function addEnumCheck(report, name, allowedValues, actual, validEvidence, invalidEvidence) {
-  const pass = allowedValues.includes(actual);
-
-  addCheck(report, name, {
-    expected: allowedValues.join(' | '),
-    actual,
-    pass,
-    evidence: pass ? validEvidence : invalidEvidence,
-  });
-}
-
-function addRequiredFieldsCheck(report, missingFields) {
-  addCheck(report, 'required_fields', {
-    expected: 'no missing required fields',
-    actual: missingFields.length > 0 ? `${missingFields.length} missing` : 'complete',
-    pass: missingFields.length === 0,
-    evidence: missingFields.length > 0 ? missingFields.join(', ') : 'All required fields present',
-  });
-}
-
-function addEnumChecks(report, metadata) {
-  if (metadata.scope) {
-    addEnumCheck(report, 'scope_value', enums.scope, metadata.scope, 'Valid enum value', `Unknown value: ${metadata.scope}`);
-  }
-
-  if (metadata.primary_domain) {
-    addEnumCheck(
-      report,
-      'primary_domain_value',
-      enums.primary_domain,
-      metadata.primary_domain,
-      'Valid enum value',
-      `Unknown value: ${metadata.primary_domain}`,
-    );
-  }
-
-  const allowedDocumentTypes = documentTypesByScope[metadata.scope];
-  if (allowedDocumentTypes && metadata.document_type) {
-    addEnumCheck(
-      report,
-      'document_type_value',
-      allowedDocumentTypes,
-      metadata.document_type,
-      `Valid for ${metadata.scope}`,
-      `Not allowed for ${metadata.scope}`,
-    );
-  }
-
-  if (metadata.scope === 'Knowledge Base' && metadata.status) {
-    addEnumCheck(report, 'status_value', enums.status, metadata.status, 'Valid enum value', `Unknown value: ${metadata.status}`);
-  }
-
-  if (metadata.authority_level && metadata.authority_level !== 'N/A') {
-    addEnumCheck(
-      report,
-      'authority_level_value',
-      enums.authority_level,
-      metadata.authority_level,
-      'Valid enum value',
-      `Unknown value: ${metadata.authority_level}`,
-    );
-  }
-
-  if (metadata.scope === 'External Reference' && metadata.whitelist_status) {
-    addEnumCheck(
-      report,
-      'whitelist_status_value',
-      enums.whitelist_status,
-      metadata.whitelist_status,
-      'Valid enum value',
-      `Unknown value: ${metadata.whitelist_status}`,
-    );
-  }
-}
-
-/**
- * Convert one raw record into metadata plus validation and whitelist eligibility.
+ * Convert one raw record into retrieval metadata and governance eligibility.
  *
  * @example normalizeRecord({ record_id: 'example', fields: { Title: 'Example' } });
  */
@@ -531,7 +362,6 @@ function normalizeRecord(record, whitelist = []) {
   }
 
   const missingFields = findMissingRequiredFields(metadata);
-  const validationReport = validateRecord(metadata, missingFields, record.record_id);
   const metadataComplete = missingFields.length === 0;
   const whitelistValid = metadata.scope === 'External Reference' ? whitelistCheck.approved : null;
   const retrievalEligible = calculateRetrievalEligibility(metadata, metadataComplete, whitelistValid);
@@ -543,8 +373,6 @@ function normalizeRecord(record, whitelist = []) {
     missing_fields: missingFields,
     whitelist_valid: whitelistValid,
     retrieval_eligible: retrievalEligible,
-    validation_status: hasErrorLevelFailure(validationReport) ? 'invalid' : 'valid',
-    validation_report: validationReport,
     whitelist_check: whitelistCheck.details,
   };
 }
@@ -583,10 +411,6 @@ function findMissingRequiredFields(metadata) {
 
 function isMissingRequiredValue(value) {
   return isBlankValue(value) || value === 'N/A';
-}
-
-function hasErrorLevelFailure(validationReport) {
-  return Object.values(validationReport.checks).some(check => !check.pass && check.severity !== 'warning');
 }
 
 /** Convert a whitelist Base row into the small shape needed for matching. */
@@ -726,266 +550,6 @@ function validateLookupUrl(url) {
   }
 }
 
-/**
- * Generate a Markdown validation report plus structured summary data.
- *
- * @example const report = await getValidationReport({ registryUrl });
- */
-async function getValidationReport(input = {}, deps = {}) {
-  const result = await getKnowledgeMetadata(input, deps);
-  const validDocs = result.documents.filter(doc => doc.validation_status === 'valid');
-  const invalidDocs = result.documents.filter(doc => doc.validation_status === 'invalid');
-
-  return {
-    success: true,
-    source: 'lark_base',
-    timestamp: new Date().toISOString(),
-    record_count: result.record_count,
-    skipped_empty_record_count: result.skipped_empty_record_count,
-    summary: buildValidationSummary(result.documents),
-    report_text: buildValidationReportText({ result, validDocs, invalidDocs }),
-    documents: result.documents,
-  };
-}
-
-function buildValidationSummary(documents) {
-  return {
-    total: documents.length,
-    valid: documents.filter(doc => doc.validation_status === 'valid').length,
-    invalid: documents.filter(doc => doc.validation_status === 'invalid').length,
-    with_warnings: documents.filter(doc => doc.validation_report?.summary.warnings > 0).length,
-  };
-}
-
-function buildValidationReportText({ result, validDocs, invalidDocs }) {
-  const lines = [
-    '# Knowledge Registry Validation Report',
-    `Generated: ${new Date().toISOString()}`,
-    `Total Records: ${result.record_count}`,
-    `Skipped Empty Rows: ${result.skipped_empty_record_count}`,
-    'Validation Mode: Schema Freeze v1.0 checks (required fields + Scope-specific enums)',
-    '',
-    '---',
-    '',
-    '## Summary of Validation Issues',
-    '',
-    `**Overall: ${validDocs.length} VALID | ${invalidDocs.length} INVALID (${getValidPercentage(result.record_count, validDocs.length)}% valid)**`,
-    '',
-    '### Validation Statistics by Scope',
-    '',
-    ...buildScopeSummaryLines(result.documents),
-    ...buildMissingFieldSummaryLines(invalidDocs),
-    '',
-    '### Invalid Records Requiring Changes',
-    '',
-    ...buildInvalidRecordLines(invalidDocs),
-    '### Valid Records',
-    '',
-    ...buildValidRecordLines(validDocs),
-    '',
-    '---',
-    '',
-    '## Detailed Validation Report',
-    '',
-    ...buildDetailedRecordLines(result.documents),
-  ];
-
-  return lines.join('\n');
-}
-
-function getValidPercentage(total, validCount) {
-  return total > 0 ? Math.round((validCount / total) * 100) : 0;
-}
-
-function buildScopeSummaryLines(documents) {
-  return Object.entries(groupDocumentsByScope(documents)).map(([scope, stats]) => {
-    const total = stats.valid + stats.invalid;
-    return `- **${scope}**: ${stats.valid}/${total} valid (${getValidPercentage(total, stats.valid)}%)`;
-  });
-}
-
-function groupDocumentsByScope(documents) {
-  const byScope = {};
-
-  for (const doc of documents) {
-    const scope = doc.scope || 'Unknown';
-    if (!byScope[scope]) byScope[scope] = { valid: 0, invalid: 0 };
-    byScope[scope][doc.validation_status === 'valid' ? 'valid' : 'invalid']++;
-  }
-
-  return byScope;
-}
-
-function buildMissingFieldSummaryLines(invalidDocs) {
-  const entries = Object.entries(countMissingFields(invalidDocs)).sort((a, b) => b[1] - a[1]);
-
-  if (entries.length === 0) {
-    return [];
-  }
-
-  return [
-    '',
-    '### Missing Required Fields Summary',
-    '',
-    ...entries.map(([field, count]) => `- \`${field}\`: missing in ${count} record${count > 1 ? 's' : ''}`),
-  ];
-}
-
-function countMissingFields(documents) {
-  const stats = {};
-
-  for (const doc of documents) {
-    for (const field of doc.missing_fields || []) {
-      stats[field] = (stats[field] || 0) + 1;
-    }
-  }
-
-  return stats;
-}
-
-function buildInvalidRecordLines(invalidDocs) {
-  if (invalidDocs.length === 0) {
-    return ['No invalid records found.', ''];
-  }
-
-  return invalidDocs.flatMap((doc, index) => {
-    const action = buildRequiredActions(doc).join(' ');
-
-    return [
-      `#### ${index + 1}. **${doc.record_id}** - "${doc.title || '(no title)'}"`,
-      `- **Scope**: ${doc.scope || 'Unknown'}`,
-      ...buildInvalidRecordMissingFieldLines(doc),
-      `- **Action**: ${action}`,
-      '',
-    ];
-  });
-}
-
-function buildRequiredActions(doc) {
-  const actions = [];
-
-  if (doc.missing_fields?.length) {
-    actions.push(`Add required field${doc.missing_fields.length > 1 ? 's' : ''}: ${doc.missing_fields.join(', ')}.`);
-  }
-
-  for (const [checkName, check] of getFailedErrorChecks(doc)) {
-    if (checkName === 'required_fields') continue;
-    actions.push(describeFailedCheck(checkName, check));
-  }
-
-  return actions.length ? actions : ['Review this record.'];
-}
-
-function describeFailedCheck(checkName, check) {
-  if (checkName === 'approved_date_not_future') {
-    return `Change Approved Date to today or an earlier date. Current value ${check.actual}; expected ${check.expected}.`;
-  }
-
-  if (checkName.endsWith('_format')) {
-    const field = checkName.replace(/_format$/, '').replaceAll('_', ' ');
-    return `Correct ${field}. Expected ${check.expected}; current value is ${check.actual}.`;
-  }
-
-  if (checkName.endsWith('_value')) {
-    const field = checkName.replace(/_value$/, '').replaceAll('_', ' ');
-    return `Select a valid ${field}. Current value is ${check.actual}; allowed values are ${check.expected}.`;
-  }
-
-  return `${checkName.replaceAll('_', ' ')} failed: expected ${check.expected}, actual ${check.actual}. ${check.evidence}.`;
-}
-
-function buildInvalidRecordMissingFieldLines(doc) {
-  if (!doc.missing_fields?.length) {
-    return [];
-  }
-
-  return [
-    `- **Missing Required Fields**: ${doc.missing_fields.length}`,
-    ...doc.missing_fields.map(field => `  - \`${field}\``),
-  ];
-}
-
-function getFailedErrorChecks(doc) {
-  return Object.entries(doc.validation_report?.checks || {})
-    .filter(([, check]) => !check.pass && check.severity !== 'warning');
-}
-
-function buildValidRecordLines(validDocs) {
-  if (validDocs.length === 0) {
-    return ['No valid records found.'];
-  }
-
-  return validDocs.map((doc, index) => (
-    `${index + 1}. **${doc.record_id}** - "${doc.title || '(no title)'}" (${doc.scope || 'Unknown'})`
-  ));
-}
-
-function buildDetailedRecordLines(documents) {
-  return documents.flatMap(doc => [
-    `## Record: ${doc.record_id}`,
-    `Title: ${doc.title || '(no title)'}`,
-    `Scope: ${doc.scope || '(no scope)'}`,
-    '',
-    ...buildValidationCheckLines(doc),
-    ...buildMissingFieldsLines(doc),
-    ...buildRecordSummaryLines(doc),
-    '---',
-    '',
-  ]);
-}
-
-function buildValidationCheckLines(doc) {
-  const checks = Object.entries(doc.validation_report?.checks || {});
-  if (checks.length === 0) {
-    return [];
-  }
-
-  return [
-    '### Validation Checks',
-    '',
-    ...checks.flatMap(([checkName, checkData]) => [
-      `**${checkName}**: ${formatCheckStatus(checkData)}`,
-      `  - Expected: ${JSON.stringify(checkData.expected)}`,
-      `  - Actual: ${JSON.stringify(checkData.actual)}`,
-      `  - Evidence: ${checkData.evidence}`,
-      '',
-    ]),
-  ];
-}
-
-function formatCheckStatus(check) {
-  if (check.severity === 'warning') return 'WARNING';
-  return check.pass ? 'PASS' : 'FAIL';
-}
-
-function buildMissingFieldsLines(doc) {
-  if (!doc.missing_fields?.length) {
-    return [];
-  }
-
-  return [
-    '### Missing Required Fields',
-    ...doc.missing_fields.map(field => `- ${field}`),
-    '',
-  ];
-}
-
-function buildRecordSummaryLines(doc) {
-  const summary = doc.validation_report?.summary;
-
-  return [
-    '### Summary',
-    `- Overall Status: ${doc.validation_status.toUpperCase()}`,
-    `- Retrieval Eligible: ${doc.retrieval_eligible}`,
-    ...(summary ? [
-      `- Checks Passed: ${summary.passed}`,
-      `- Checks Failed: ${summary.failed}`,
-      `- Warnings: ${summary.warnings}`,
-    ] : []),
-    '',
-  ];
-}
-
 module.exports = {
   readKnowledgeRegistry,
   readExternalWhitelist,
@@ -994,9 +558,6 @@ module.exports = {
   normalizeDomain,
   domainMatches,
   getKnowledgeMetadata,
-  getValidationReport,
-  validateRecord,
   normalizeDate,
   isEmptyRecord,
-  enums,
 };

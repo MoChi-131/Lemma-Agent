@@ -132,6 +132,8 @@
 
 MCP agent 應先呼叫 `resolve_document_conflict` 取得規則結果及證據。如需要語境判斷，agent 可再呼叫 `submit_conflict_assessment`，提交關係分類、衝突類型及簡短證據說明。第二個工具會重新計算文件證據及雜湊，只產生 `Pending` 提案，不會寫入資料或批准決策，因此不需要 Lemma-Agent 的外部 AI API key。
 
+完整 conflict tools 已從一般知識檢索 Agent 的預設工具清單分離。Knowledge Base Management Agent 啟動 MCP 前設定 `ENABLE_CONFLICT_TOOLS=true`，才會註冊 `resolve_document_conflict` 與 `submit_conflict_assessment`。一般 Agent 只回報明顯矛盾及證據，不執行完整 conflict workflow。
+
 ### 8. 三份或以上文件
 
 多文件比較屬 MVP 後續工作。比較所有可能組合會快速增加：3 份文件有 3 組、10 份有 45 組、100 份有 4,950 組。

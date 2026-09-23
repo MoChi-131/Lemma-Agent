@@ -1,6 +1,8 @@
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
+const { registerConflictTools } = require('../registrations/register-conflict-tools');
 const { registerDocumentTools } = require('../registrations/register-document-tools');
 const { registerKnowledgeTools } = require('../registrations/register-knowledge-tools');
+const { registerValidationTools } = require('../registrations/register-validation-tools');
 const { registerWikiChildrenTool } = require('../registrations/register-wiki-children-tool');
 const { registerWikiSearchTools } = require('../registrations/register-wiki-search-tools');
 const { registerWikiSubtreeTool } = require('../registrations/register-wiki-subtree-tool');
@@ -12,7 +14,11 @@ const SERVER_INFO = {
 };
 
 /** Build one MCP server so stdio and HTTP expose the same core tools. */
-function createLarkMcpServer({ includeWikiChildren = false } = {}) {
+function createLarkMcpServer({
+  includeWikiChildren = false,
+  includeConflictTools = process.env.ENABLE_CONFLICT_TOOLS === 'true',
+  includeValidationTools = process.env.ENABLE_VALIDATION_TOOLS === 'true',
+} = {}) {
   const server = new McpServer(SERVER_INFO);
 
   registerDocumentTools(server);
@@ -21,6 +27,8 @@ function createLarkMcpServer({ includeWikiChildren = false } = {}) {
   registerWikiSubtreeTool(server);
   registerWikiSearchTools(server);
   registerKnowledgeTools(server);
+  if (includeValidationTools) registerValidationTools(server);
+  if (includeConflictTools) registerConflictTools(server);
 
   return server;
 }

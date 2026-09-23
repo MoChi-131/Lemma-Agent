@@ -42,9 +42,10 @@ async function main() {
     assert.ok(session, 'Expected a stateful HTTP MCP session');
 
     const toolNames = (await client.listTools()).tools.map(tool => tool.name);
-    for (const name of ['get_knowledge_metadata', 'get_knowledge_validation_report']) {
+    for (const name of ['get_knowledge_metadata', 'search_knowledge_registry', 'retrieve_knowledge_document']) {
       assert.ok(toolNames.includes(name), `Missing tool: ${name}`);
     }
+    const hasValidationTool = toolNames.includes('get_knowledge_validation_report');
 
     const { result: all } = await callTool(client, 'get_knowledge_metadata');
     assert.equal(all.success, true);
@@ -57,8 +58,8 @@ async function main() {
       }
     }
 
-    const valid = all.documents.find(doc => doc.validation_status === 'valid' && doc.source_url);
-    const invalid = all.documents.find(doc => doc.validation_status === 'invalid');
+    const valid = all.documents.find(doc => doc.metadata_complete && doc.source_url);
+    const invalid = all.documents.find(doc => !doc.metadata_complete);
     const approvedExternal = all.documents.find(doc =>
       doc.scope === 'External Reference' && doc.retrieval_eligible === true);
     const blockedExternal = all.documents.find(doc =>
@@ -79,15 +80,14 @@ async function main() {
     assert.equal(absent.found, false);
     assert.equal(absent.record_count, 0);
 
-    const { response: reportResponse, result: report } = await callTool(
-      client,
-      'get_knowledge_validation_report',
-    );
-    const reportText = reportResponse.content?.find(item => item.type === 'text')?.text || '';
-    assert.match(reportText, /^# Knowledge Registry Validation Report/m);
-    assert.equal(report.record_count, expectedCount);
-    assert.equal(report.summary.total, expectedCount);
-    assert.equal(report.summary.valid + report.summary.invalid, expectedCount);
+    let validationSummary = null;
+    if (hasValidationTool) {
+      const { response: reportResponse, result: report } = await callTool(client, 'get_knowledge_validation_report');
+      const reportText = reportResponse.content?.find(item => item.type === 'text')?.text || '';
+      assert.match(reportText, /^# Knowledge Registry Validation Report/m);
+      assert.equal(report.record_count, expectedCount);
+      validationSummary = report.summary;
+    }
 
     await client.listTools();
     assert.equal(transport.sessionId, session, 'MCP session changed unexpectedly');
@@ -96,14 +96,13 @@ async function main() {
       status: 'PASS',
       record_count: all.record_count,
       standard_output_contract: 'PASS',
-      valid_count: report.summary.valid,
-      invalid_count: report.summary.invalid,
-      warning_count: report.summary.with_warnings,
+      metadata_complete_count: all.documents.filter(doc => doc.metadata_complete).length,
+      metadata_incomplete_count: all.documents.filter(doc => !doc.metadata_complete).length,
       exact_url_lookup: 'PASS',
       missing_url_lookup: 'PASS',
       approved_external_retrieval: 'PASS',
       blocked_external_retrieval: 'PASS',
-      validation_report: 'PASS',
+      validation_report: validationSummary ? 'PASS' : 'NOT_ENABLED',
       session_reused: true,
     }, null, 2));
   } finally {

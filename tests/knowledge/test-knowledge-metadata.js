@@ -1,7 +1,8 @@
 // Live read-only CLI, not an offline unit test. Run from Lemma-Agent so dotenv
 // finds .env. Existing terminal environment values take precedence over .env.
 require('dotenv').config({ quiet: true });
-const { getKnowledgeMetadata, getValidationReport } = require('../../integrations/lark/knowledge/knowledge-registry');
+const { getKnowledgeMetadata } = require('../../integrations/lark/knowledge/knowledge-registry');
+const { getValidationReport } = require('../../integrations/lark/knowledge/knowledge-validation');
 const fs = require('fs');
 const path = require('path');
 
@@ -48,7 +49,7 @@ async function main() {
     }, null, 2));
   } else {
     // Display metadata with required-field report
-    const result = await getKnowledgeMetadata(input);
+    const result = await getValidationReport(input);
     // Count affected records, not the total number of missing individual fields.
     // Successful reads with missing fields or found=false still exit with code 0.
     console.log(JSON.stringify({ ...result, validation: {

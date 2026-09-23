@@ -6,18 +6,18 @@ Production code is grouped by responsibility and then by feature.
 integrations/lark/
   core/         Lark authentication and document APIs
   wiki/         Wiki traversal, metadata and subtree logic
-  knowledge/    Registry, validation, whitelist and eligibility rules
+  knowledge/    Registry retrieval gate plus optional management validation
   conflicts/    Comparison rules and approved-decision reuse
 
 tools/lark/
   documents/    Raw document read and append handlers
   wiki/         Wiki tree, subtree, metadata and search handlers
-  knowledge/    Governed metadata-to-content retrieval
+  knowledge/    Registry-first discovery and governed content retrieval
   conflicts/    Conflict resolution and assessment handlers
 
 runtime/
-  core/         Shared MCP server factory and legacy local skill runner
-  registrations/MCP tool schemas, descriptions and handlers
+  core/         Shared MCP server factory
+  registrations/MCP tool schemas, descriptions and optional feature groups
   servers/      Stdio and Streamable HTTP transport entry points
 
 tests/
@@ -28,8 +28,7 @@ tests/
   integration/  Manual integration checks
   fixtures/     Shared deterministic test data
 
-scripts/lark/   Standalone Lark diagnostics
-skills/         Local skill instructions
+scripts/lark/   Authentication diagnostic
 docs/           Current specifications, acceptance evidence and release history
 ```
 
@@ -51,3 +50,4 @@ MCP client
 - Integrations contain reusable API and domain logic.
 - Production code must not import from `tests/` or `scripts/`.
 - Both MCP transports use the shared server factory so their core tool behavior stays consistent.
+- Detailed validation tools are loaded only when `ENABLE_VALIDATION_TOOLS=true` for the Knowledge Base Management Agent.

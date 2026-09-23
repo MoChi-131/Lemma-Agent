@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test:knowledge-metadata": "node tests/knowledge/test-knowledge-metadata.js",
-    "test:knowledge-registry": "node --test --test-isolation=none tests/knowledge/test-knowledge-registry.js tests/knowledge/test-retrieve-knowledge-document.js",
+    "test:knowledge-registry": "node --test --test-isolation=none tests/knowledge/test-knowledge-registry.js tests/knowledge/test-retrieve-knowledge-document.js tests/knowledge/test-search-knowledge-registry.js",
     "test:knowledge-mcp:remote": "node tests/knowledge/test-knowledge-mcp-remote.js",
     "test:document-comparison": "node --test --test-isolation=none tests/conflicts/test-document-comparison.js",
     "test:conflict-decisions": "node --test --test-isolation=none tests/conflicts/test-conflict-decision-registry.js",
@@ -24,7 +24,6 @@
     "mcp:http": "node runtime/servers/lark-mcp-http-server.js",
     "mcp:start": "node runtime/servers/lark-mcp-server.js",
     "test:lark-auth": "node scripts/lark/test-auth.js",
-    "test:lark-tool": "node tests/integration/test-tool.js",
     "test:mcp": "node tests/mcp/test-mcp-client.js",
     "test:wiki-search": "node --test --test-isolation=none tests/wiki/test-wiki-search.js tests/wiki/test-wiki-tree-mcp.js",
     "test:wiki-search:remote": "node tests/wiki/test-wiki-search-remote.js"
@@ -45,9 +44,6 @@
     "@modelcontextprotocol/sdk": "^1.30.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "https-proxy-agent": "^9.1.0",
-    "openai": "^7.12.1",
-    "undici": "^8.10.2",
     "zod": "^3.25.76"
   }
 }
