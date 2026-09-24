@@ -5,6 +5,7 @@ const {
   findEmbeddedSheets,
   findFileAttachments,
   findEmbeddedImages,
+  findEmbeddedWhiteboards,
   readDocumentData,
 } = require('../../integrations/lark/core/documents');
 const { documentResult } = require('../../runtime/core/document-output');
@@ -56,7 +57,33 @@ test('detects embedded image blocks', () => {
   assert.deepEqual(findEmbeddedImages([{
     block_id: 'image-block', image: { token: 'imageToken', width: 800, height: 600 },
   }]), [{
-    block_id: 'image-block', token: 'imageToken', width: 800, height: 600,
+    block_id: 'image-block', token: 'imageToken', name: null, source_type: 'image_block', width: 800, height: 600,
+  }]);
+});
+
+test('recognizes image file blocks that Lark exposes as image.png attachments', () => {
+  assert.deepEqual(findEmbeddedImages([{
+    block_id: 'file-image', file: { token: 'fileImageToken', name: 'image.png' },
+  }]), [{
+    block_id: 'file-image',
+    token: 'fileImageToken',
+    name: 'image.png',
+    source_type: 'file_block',
+    width: null,
+    height: null,
+  }]);
+});
+
+test('recognizes Lark whiteboard blocks and their board token', () => {
+  assert.deepEqual(findEmbeddedWhiteboards([{
+    block_id: 'board-block', block_type: 43, token: 'whiteboardToken',
+  }]), [{
+    block_id: 'board-block',
+    token: 'whiteboardToken',
+    name: 'whiteboard',
+    source_type: 'whiteboard',
+    width: null,
+    height: null,
   }]);
 });
 
@@ -106,6 +133,50 @@ test('downloads embedded images for MCP visual inspection', async () => {
   });
 
   assert.equal(result.images[0].success, true);
+  assert.equal(result.images[0].mime_type, 'image/png');
+  assert.equal(result.images[0].data, bytes.toString('base64'));
+});
+
+test('downloads image.png file blocks as images instead of unsupported attachments', async () => {
+  const bytes = Buffer.from('png bytes');
+  const result = await readDocumentData('document-id', {}, {
+    getToken: async () => 'token',
+    fetch: async url => {
+      const value = String(url);
+      if (value.endsWith('/raw_content')) return jsonResponse({ code: 0, data: { content: 'image.png' } });
+      if (value.includes('/blocks?')) return jsonResponse({ code: 0, data: { items: [
+        { block_id: 'file-image', file: { token: 'fileImageToken', name: 'image.png' } },
+      ], has_more: false } });
+      if (value.includes('/medias/fileImageToken/download')) return binaryResponse(bytes, 'image/png');
+      throw new Error(`Unexpected URL: ${value}`);
+    },
+  });
+
+  assert.equal(result.images[0].success, true);
+  assert.equal(result.images[0].name, 'image.png');
+  assert.equal(result.images[0].source_type, 'file_block');
+  assert.equal(result.attachments[0].handled_as, 'embedded_image');
+});
+
+test('renders embedded Lark whiteboards as MCP-readable images', async () => {
+  const bytes = Buffer.from('whiteboard png');
+  const result = await readDocumentData('document-id', {}, {
+    getToken: async () => 'token',
+    fetch: async url => {
+      const value = String(url);
+      if (value.endsWith('/raw_content')) return jsonResponse({ code: 0, data: { content: 'whiteboard' } });
+      if (value.includes('/blocks?')) return jsonResponse({ code: 0, data: { items: [
+        { block_id: 'board-block', block_type: 43, token: 'whiteboardToken' },
+      ], has_more: false } });
+      if (value.includes('/whiteboards/whiteboardToken/download_as_image')) {
+        return binaryResponse(bytes, 'image/png');
+      }
+      throw new Error(`Unexpected URL: ${value}`);
+    },
+  });
+
+  assert.equal(result.images[0].success, true);
+  assert.equal(result.images[0].source_type, 'whiteboard');
   assert.equal(result.images[0].mime_type, 'image/png');
   assert.equal(result.images[0].data, bytes.toString('base64'));
 });

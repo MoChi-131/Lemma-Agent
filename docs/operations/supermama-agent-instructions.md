@@ -58,7 +58,7 @@ Within one retrieval response, inspect sources in this order and stop when the q
 2. `tables`
 3. `embedded_sheets` entries where `success=true`
 4. PDF `attachments` where `success=true`
-5. Embedded `images` where `success=true`; inspect the MCP image content directly for visible text or other relevant evidence
+5. Embedded `images` where `success=true`, including entries with `source_type=whiteboard`; inspect the MCP image content directly for visible text or other relevant evidence
 
 If a Sheet, image or attachment returns an error, use the accessible content and report the missing component once. Do not retry the same failed component repeatedly.
 

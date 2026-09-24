@@ -66,7 +66,7 @@ function registerKnowledgeTools(server) {
 
   server.registerTool('retrieve_knowledge_document', {
     title: 'Retrieve Knowledge Document',
-    description: 'Retrieve text, native tables, embedded Sheets, embedded images and supported PDF attachments from one registered document by exact URL. Images are returned as MCP image content for visual inspection or OCR. This tool checks retrieval_eligible first. Use it after search_knowledge_registry or for an exact URL. Cite the source and answer from retrieved content, never metadata alone.',
+    description: 'Retrieve text, native tables, embedded Sheets, images, whiteboard thumbnails and supported PDF attachments from one registered document by exact URL. Visual content is returned as MCP image content for inspection or OCR. This tool checks retrieval_eligible first. Use it after search_knowledge_registry or for an exact URL. Cite the source and answer from retrieved content, never metadata alone.',
     inputSchema: {
       url: z.string().url().describe('Exact Lark Wiki document URL from the registry or a Wiki search result'),
       registryUrl: z.string().url().optional().describe('Optional registry Base URL override'),

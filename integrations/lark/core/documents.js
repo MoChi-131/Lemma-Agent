@@ -8,6 +8,7 @@ const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_EMBEDDED_IMAGES = 20;
 const MAX_EXTRACTED_TEXT_CHARS = 500000;
+const IMAGE_FILE_PATTERN = /\.(?:png|jpe?g|gif|webp|bmp|tiff?)$/i;
 
 async function readDocument(documentId, { signal } = {}) {
   const accessToken = await getTenantAccessToken({ signal });
@@ -210,26 +211,59 @@ function findFileAttachments(blocks) {
 }
 
 function findEmbeddedImages(blocks) {
-  return blocks.filter(block => block.image?.token).map(block => ({
+  return blocks.flatMap(block => {
+    if (block.image?.token) {
+      return [{
+        block_id: block.block_id,
+        token: block.image.token,
+        name: block.image.name || null,
+        source_type: 'image_block',
+        width: block.image.width || null,
+        height: block.image.height || null,
+      }];
+    }
+    if (block.file?.token && IMAGE_FILE_PATTERN.test(block.file.name || '')) {
+      return [{
+        block_id: block.block_id,
+        token: block.file.token,
+        name: block.file.name,
+        source_type: 'file_block',
+        width: null,
+        height: null,
+      }];
+    }
+    return [];
+  });
+}
+
+function findEmbeddedWhiteboards(blocks) {
+  return blocks.filter(block => block.block_type === 43 && (
+    block.token || block.whiteboard?.token || block.whiteboard?.whiteboard_id
+  )).map(block => ({
     block_id: block.block_id,
-    token: block.image.token,
-    width: block.image.width || null,
-    height: block.image.height || null,
+    token: block.token || block.whiteboard?.token || block.whiteboard?.whiteboard_id,
+    name: 'whiteboard',
+    source_type: 'whiteboard',
+    width: null,
+    height: null,
   }));
 }
 
 async function readEmbeddedImages(blocks, accessToken, { signal, fetchImpl }) {
-  const images = findEmbeddedImages(blocks);
+  const images = [...findEmbeddedImages(blocks), ...findEmbeddedWhiteboards(blocks)];
   const selected = images.slice(0, MAX_EMBEDDED_IMAGES);
   const results = [];
 
   for (const image of selected) {
     try {
-      const response = await fetchImpl(
-        `https://open.larksuite.com/open-apis/drive/v1/medias/${encodeURIComponent(image.token)}/download`,
-        requestOptions(accessToken, signal),
-      );
-      if (!response.ok) throw new Error(`Image download returned HTTP ${response.status}.`);
+      const endpoint = image.source_type === 'whiteboard'
+        ? `https://open.larksuite.com/open-apis/board/v1/whiteboards/${encodeURIComponent(image.token)}/download_as_image`
+        : `https://open.larksuite.com/open-apis/drive/v1/medias/${encodeURIComponent(image.token)}/download`;
+      const response = await fetchImpl(endpoint, {
+        ...requestOptions(accessToken, signal),
+        headers: { ...requestOptions(accessToken, signal).headers, Accept: 'image/png,image/jpeg,image/gif,image/svg+xml' },
+      });
+      if (!response.ok) throw new Error(`${image.source_type === 'whiteboard' ? 'Whiteboard' : 'Image'} download returned HTTP ${response.status}.`);
       const declaredSize = Number(response.headers.get("content-length"));
       if (declaredSize > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 10 MB extraction limit.");
       const bytes = Buffer.from(await response.arrayBuffer());
@@ -239,6 +273,8 @@ async function readEmbeddedImages(blocks, accessToken, { signal, fetchImpl }) {
 
       results.push({
         block_id: image.block_id,
+        name: image.name,
+        source_type: image.source_type,
         success: true,
         mime_type: mimeType,
         byte_size: bytes.length,
@@ -247,7 +283,11 @@ async function readEmbeddedImages(blocks, accessToken, { signal, fetchImpl }) {
         data: bytes.toString("base64"),
       });
     } catch (error) {
-      results.push(contentReadFailure(image.block_id, "IMAGE_READ_FAILED", error));
+      results.push(contentReadFailure(
+        image.block_id,
+        image.source_type === 'whiteboard' ? "WHITEBOARD_READ_FAILED" : "IMAGE_READ_FAILED",
+        error,
+      ));
     }
   }
 
@@ -265,6 +305,14 @@ async function readEmbeddedImages(blocks, accessToken, { signal, fetchImpl }) {
 async function readFileAttachments(blocks, accessToken, { signal, fetchImpl }, deps) {
   const parsePdf = deps.parsePdf || pdfParse;
   return Promise.all(findFileAttachments(blocks).map(async file => {
+    if (IMAGE_FILE_PATTERN.test(file.name)) {
+      return {
+        block_id: file.block_id,
+        name: file.name,
+        success: true,
+        handled_as: "embedded_image",
+      };
+    }
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       return {
         block_id: file.block_id,
@@ -316,6 +364,8 @@ function contentReadFailure(blockId, errorCode, error) {
         ? "Embedded Sheet could not be read. Check Lark Sheet or Drive read permissions."
         : errorCode === "IMAGE_READ_FAILED"
           ? "Embedded image could not be read. Check Lark Drive download permission and image access."
+          : errorCode === "WHITEBOARD_READ_FAILED"
+            ? "Embedded whiteboard could not be rendered. Check Lark whiteboard access and document media download permission."
         : "Attachment could not be read. Check Lark Drive download permission and file access.",
   };
 }
@@ -327,4 +377,5 @@ module.exports = {
   findEmbeddedSheets,
   findFileAttachments,
   findEmbeddedImages,
+  findEmbeddedWhiteboards,
 };
