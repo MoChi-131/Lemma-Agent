@@ -172,7 +172,7 @@ These tools declare read-only, non-destructive, idempotent annotations. Normal t
 
 External web search must first call `get_approved_web_domains` and restrict the search to those hosts. Every candidate or redirected final URL must then pass `check_external_urls` before the agent reads, uses or cites it. Both checks fail closed if the whitelist cannot be read.
 
-Set `ENABLE_VALIDATION_TOOLS=true` only on the Knowledge Base Management Agent to expose `get_knowledge_validation_report`. The retrieval agent performs only the minimum conflict check described in [Agent Instructions](supermama-agent-instructions.md).
+Set `ENABLE_VALIDATION_TOOLS=true` only on the Knowledge Base Management Agent to expose `get_knowledge_validation_report`. The retrieval agent performs only the minimum conflict check described in [Agent Instructions](../operations/supermama-agent-instructions.md).
 
 ## Current limits
 
@@ -187,4 +187,4 @@ Set `ENABLE_VALIDATION_TOOLS=true` only on the Knowledge Base Management Agent t
 
 ## Roadmap
 
-Deferred write-back alerts and Wiki Inventory-to-Registry mapping are specified in [Roadmap](roadmap.md).
+Deferred write-back alerts and Wiki Inventory-to-Registry mapping are specified in [Roadmap](../planning/roadmap.md).

@@ -1,6 +1,6 @@
 # Metadata Acceptance Report
 
-> Historical acceptance snapshot. For current commands and behavior, use [Knowledge Registry Reader and Validator](knowledge-registry.md).
+> Historical acceptance snapshot. For current commands and behavior, use [Knowledge Registry Reader and Retrieval Gate](../reference/knowledge-registry.md).
 
 Date: 2026-09-17  
 Pilot baseline: 13 Lark Base records  
@@ -91,4 +91,4 @@ Schema Freeze v1.0 originally listed Authority Level in the whitelist sub-schema
 
 ## Conclusion
 
-The read-only Metadata MVP was accepted for the frozen 13-record pilot. Deferred work is tracked in [Roadmap](roadmap.md). This retrieval version performs only a minimum check for obvious contradictions in selected content.
+The read-only Metadata MVP was accepted for the frozen 13-record pilot. Deferred work is tracked in [Roadmap](../planning/roadmap.md). This retrieval version performs only a minimum check for obvious contradictions in selected content.

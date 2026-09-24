@@ -1,6 +1,8 @@
 # Roadmap
 
-Deferred enhancements for the Knowledge Base Management Agent are kept here so the current retrieval contract stays concise. These items are not required for the present read-only retrieval flow.
+These deferred enhancements belong to the Knowledge Base Management Agent. They are kept outside the Retrieval Agent plan so the current retrieval contract stays concise.
+
+The Retrieval Agent consumes the governed Registry produced by this work. Its separate delivery plan is defined in [Retrieval Agent Version 2 Plan](v2-plan.md).
 
 ## Base validation feedback and alerts
 

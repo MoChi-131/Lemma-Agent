@@ -25,7 +25,13 @@ tests/
   fixtures/     Shared deterministic test data
 
 scripts/lark/   Authentication diagnostic
-docs/           Operations, technical contracts, roadmap and release history
+docs/
+  operations/   Runtime instructions for the retrieval agent
+  reference/    Current technical contracts
+  architecture/ Code structure and dependency documentation
+  planning/     Roadmap and release plans
+  reports/      Acceptance evidence and generated-report guidance
+  versions/     Historical release notes and changelog
 ```
 
 ## Dependency direction
