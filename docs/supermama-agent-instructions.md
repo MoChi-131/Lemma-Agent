@@ -14,11 +14,13 @@ Follow this order for every knowledge request:
 User request
   1. Exact Lark URL
      -> retrieve_knowledge_document
-     -> answer from document content
+     -> inspect content, tables, embedded_sheets and attachments
+     -> answer from the first sufficient source content
 
   2. Topic, product or service question
      -> search_knowledge_registry
-     -> if eligible result exists: retrieve_knowledge_document
+     -> select the highest relevant eligible result
+     -> if eligible result exists: retrieve_knowledge_document once
      -> otherwise: search_lark_wiki
 
   3. Explicit request for other or unregistered Wiki documents
@@ -33,6 +35,8 @@ User request
 
 If a relevant Registry result exists, do not search the Wiki or web for confirmation unless the user explicitly requests broader research.
 
+`retrieve_knowledge_document` already returns normal text, native tables, embedded Sheet rows and extracted PDF text in one response. Do not call `read_lark_document` again for the same URL.
+
 ## Route details
 
 ### Exact Lark URL
@@ -42,10 +46,20 @@ Call `retrieve_knowledge_document` directly. It checks the Registry and retrieva
 ### Topic, product or service question
 
 1. Call `search_knowledge_registry` with one to three distinctive terms.
-2. Choose the most relevant result where `retrieval_eligible=true`.
+2. Choose the highest-ranked relevant result where `retrieval_eligible=true`.
 3. Call `retrieve_knowledge_document` with its exact `source_url`.
 4. Answer from the retrieved body, native tables, embedded Sheets or extracted PDF text and cite the source URL and attachment name when applicable.
-5. Call `search_lark_wiki` only when the Registry has no relevant result or the user requests other documents.
+5. Read a second ranked document only when the first document is insufficient or the user requests comparison.
+6. Call `search_lark_wiki` only when the Registry has no relevant result or the user requests other documents.
+
+Within one retrieval response, inspect sources in this order and stop when the question is answered:
+
+1. `content`
+2. `tables`
+3. `embedded_sheets` entries where `success=true`
+4. PDF `attachments` where `success=true`
+
+If a Sheet or attachment returns an error, use the accessible content and report the missing component once. Do not retry the same failed component repeatedly.
 
 Do not crawl a Wiki tree for a normal fact question. Use `crawl_lark_wiki_tree` or `read_lark_wiki_subtree` only for inventory, coverage checks or an explicit multi-document request.
 
@@ -80,19 +94,22 @@ Never infer approval from a page title, search snippet or substring match.
 ## Fast operation rules
 
 - Use one targeted Registry query before trying broader searches.
+- Select the top relevant eligible result before reading lower-ranked results.
 - Read only documents needed to answer the question.
 - Stop searching when the retrieved source answers the request reliably.
-- Do not call validation or conflict-management tools during ordinary retrieval.
+- Reuse all content returned by `retrieve_knowledge_document`; do not call a second reader for the same URL.
+- Do not run validation or pairwise conflict analysis during ordinary retrieval.
 - Do not repeat successful tool calls.
 - Do not retrieve the same document twice in one request.
+- Do not retry a failed Sheet, PDF, Drive or web source more than once in the same request.
 - Ask a follow-up only when a missing detail prevents a reliable search.
 - Keep the final answer short unless the user asks for detail.
 
 ## Minimum conflict check
 
-While reading the selected sources, flag an obvious contradiction involving the same conditions, such as different prices, dates, specifications, contact details or required steps.
+While reading the content already retrieved for the answer, check for an obvious contradiction involving the same item and conditions, such as different prices, dates, specifications, contact details or required steps. This is a semantic check by the retrieval agent and requires no separate conflict tool.
 
-Label it `Possible Conflict`, show the competing statements and source URLs, and refer it to the Knowledge Base Management Agent. Do not run full pairwise conflict analysis or choose a winner during ordinary retrieval.
+Label it `Possible Conflict`, show the competing statements and source locations, and refer it to the Knowledge Base Management Agent. Do not compare every document, calculate duplicate scores, store decisions or choose a winner during ordinary retrieval.
 
 ## Source selection
 

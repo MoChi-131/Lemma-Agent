@@ -7,7 +7,7 @@ Supermama AI Assistant 的 Lark MCP 與知識治理專案。
 - Wiki tree discovery, subtree body reading and literal search.
 - Lark Base metadata validation and external-domain whitelist checks.
 - Governed document retrieval through `retrieval_eligible`.
-- Deterministic duplicate and conflict evidence with human decision reuse.
+- A lightweight agent-level check for obvious contradictions in retrieved content.
 - Stdio and Streamable HTTP MCP transports using one shared server factory.
 
 See the [documentation index](docs/README.md) for specifications, acceptance evidence, project structure and historical release notes.
@@ -25,7 +25,6 @@ Create a local `.env` containing `LARK_APP_ID` and `LARK_APP_SECRET`. Never comm
 ```powershell
 npm.cmd test
 npm.cmd run test:knowledge-registry
-npm.cmd run test:conflicts
 npm.cmd run test:wiki-subtree:mcp
 ```
 

@@ -84,14 +84,11 @@ Schema Freeze v1.0 originally listed Authority Level in the whitelist sub-schema
 
 - Optional frozen fields (`lark_owner`, `workstream`, `project_name`, and project dates) are normalized when present, but the current pilot does not exercise them in live Base records.
 - Authority-based retrieval ranking is a retrieval-layer task; this reader currently provides the eligibility gate and Authority Level needed by that policy.
-- URL lookup is an exact string match.
-The system finds a record only when the submitted URL exactly matches the URL stored in Lark Base. Differences such as extra query parameters, a trailing slash, or another valid URL format for the same document may return found=false.
-- Validation results are reported but are not written back to Lark Base.
-Invalid fields and suggested actions appear in the terminal, MCP output, and validation-report.md. The system does not currently update the Lark record or create an alert for colleagues automatically.
-- Wiki Inventory-to-Registry mapping evidence is still outstanding.
-The registry can be read and validated, but there is no completed report comparing all documents in the relevant Lark Wiki with the registry. Therefore, it has not yet been demonstrated that every required Wiki document has a corresponding registry record.
-- Conflict taxonomy, dataset, compare tool, and conflict tests are outside this acceptance report.
+- URL lookup is an exact string match. Query parameters, trailing slashes, or another valid URL form for the same document may return `found=false`.
+- Validation results appear in terminal, MCP output, and `validation-report.md`; they are not written back to Lark Base.
+- Wiki Inventory-to-Registry mapping evidence is outstanding, so complete Wiki coverage has not been demonstrated.
+- Full conflict classification is outside this Metadata MVP; the retrieval agent only flags obvious contradictions in content it has already read.
 
 ## Conclusion
 
-The read-only Metadata MVP was accepted for the frozen 13-record pilot. Wiki Inventory-to-Registry mapping remains a future task. Conflict and duplicate work continued separately under [Conflict Taxonomy v1](conflict-taxonomy-v1.md).
+The read-only Metadata MVP was accepted for the frozen 13-record pilot. Deferred work is tracked in [Roadmap](roadmap.md). This retrieval version performs only a minimum check for obvious contradictions in selected content.
