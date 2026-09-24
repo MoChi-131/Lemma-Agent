@@ -49,7 +49,7 @@ Make one governed retrieval call return the useful content needed for an answer.
 
 Deliverables:
 
-- Stable handling of text, native tables, embedded Sheets, and PDF attachments.
+- Stable handling of text, native tables, embedded Sheets, embedded images, and PDF attachments.
 - Clear per-component success and error states.
 - Bounded content size, page count, and processing time.
 - No duplicate read of the same document or attachment in one request.

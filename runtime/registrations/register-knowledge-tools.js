@@ -3,6 +3,7 @@ const { getKnowledgeMetadata } = require('../../integrations/lark/knowledge/know
 const { retrieveKnowledgeDocumentTool } = require('../../tools/lark/knowledge/retrieve-knowledge-document');
 const { searchKnowledgeRegistryTool } = require('../../tools/lark/knowledge/search-knowledge-registry');
 const { checkExternalUrls, getApprovedWebDomains } = require('../../tools/lark/knowledge/external-web-governance');
+const { documentResult } = require('../core/document-output');
 
 const READ_ONLY = {
   readOnlyHint: true,
@@ -65,7 +66,7 @@ function registerKnowledgeTools(server) {
 
   server.registerTool('retrieve_knowledge_document', {
     title: 'Retrieve Knowledge Document',
-    description: 'Retrieve text, native tables, embedded Sheets and supported PDF attachments from one registered document by exact URL. This tool checks retrieval_eligible first. Use it after search_knowledge_registry or for an exact URL. Cite the source and answer from retrieved content, never metadata alone.',
+    description: 'Retrieve text, native tables, embedded Sheets, embedded images and supported PDF attachments from one registered document by exact URL. Images are returned as MCP image content for visual inspection or OCR. This tool checks retrieval_eligible first. Use it after search_knowledge_registry or for an exact URL. Cite the source and answer from retrieved content, never metadata alone.',
     inputSchema: {
       url: z.string().url().describe('Exact Lark Wiki document URL from the registry or a Wiki search result'),
       registryUrl: z.string().url().optional().describe('Optional registry Base URL override'),
@@ -75,7 +76,7 @@ function registerKnowledgeTools(server) {
   }, async input => {
     try {
       const result = await retrieveKnowledgeDocumentTool(input);
-      return jsonResult(result, { isError: !result.success });
+      return documentResult(result, { isError: !result.success });
     } catch (error) {
       return errorResult(error instanceof Error ? error.message : 'Knowledge document retrieval failed.');
     }

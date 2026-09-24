@@ -4,8 +4,10 @@ const {
   extractTables,
   findEmbeddedSheets,
   findFileAttachments,
+  findEmbeddedImages,
   readDocumentData,
 } = require('../../integrations/lark/core/documents');
+const { documentResult } = require('../../runtime/core/document-output');
 
 const tableBlocks = [
   {
@@ -50,6 +52,14 @@ test('detects embedded Sheet and file blocks', () => {
   }]);
 });
 
+test('detects embedded image blocks', () => {
+  assert.deepEqual(findEmbeddedImages([{
+    block_id: 'image-block', image: { token: 'imageToken', width: 800, height: 600 },
+  }]), [{
+    block_id: 'image-block', token: 'imageToken', width: 800, height: 600,
+  }]);
+});
+
 test('reads raw content and paginated blocks with one access token', async () => {
   let tokenCalls = 0;
   const requestedUrls = [];
@@ -77,6 +87,43 @@ test('reads raw content and paginated blocks with one access token', async () =>
   assert.match(requestedUrls[2], /page_token=next/);
   assert.deepEqual(result.embedded_sheets, []);
   assert.deepEqual(result.attachments, []);
+  assert.deepEqual(result.images, []);
+});
+
+test('downloads embedded images for MCP visual inspection', async () => {
+  const bytes = Buffer.from('image bytes');
+  const result = await readDocumentData('document-id', {}, {
+    getToken: async () => 'token',
+    fetch: async url => {
+      const value = String(url);
+      if (value.endsWith('/raw_content')) return jsonResponse({ code: 0, data: { content: 'image.png' } });
+      if (value.includes('/blocks?')) return jsonResponse({ code: 0, data: { items: [
+        { block_id: 'image-block', image: { token: 'imageToken', width: 800, height: 600 } },
+      ], has_more: false } });
+      if (value.includes('/medias/imageToken/download')) return binaryResponse(bytes, 'image/png');
+      throw new Error(`Unexpected URL: ${value}`);
+    },
+  });
+
+  assert.equal(result.images[0].success, true);
+  assert.equal(result.images[0].mime_type, 'image/png');
+  assert.equal(result.images[0].data, bytes.toString('base64'));
+});
+
+test('emits image bytes as MCP image content without duplicating them in JSON', () => {
+  const result = documentResult({
+    success: true,
+    content: 'body',
+    images: [{
+      block_id: 'image-block', success: true, mime_type: 'image/png', data: 'aW1hZ2U=',
+    }],
+  });
+
+  assert.equal(result.content[1].type, 'image');
+  assert.equal(result.content[1].mimeType, 'image/png');
+  assert.equal(result.content[1].data, 'aW1hZ2U=');
+  assert.equal(result.structuredContent.images[0].data, undefined);
+  assert.equal(result.content[0].text.includes('aW1hZ2U='), false);
 });
 
 test('reads embedded Sheet rows and extracts PDF attachment text', async () => {
@@ -135,11 +182,11 @@ function jsonResponse(body, status = 200) {
   };
 }
 
-function binaryResponse(bytes) {
+function binaryResponse(bytes, contentType = 'application/pdf') {
   return {
     ok: true,
     status: 200,
-    headers: { get: () => String(bytes.length) },
+    headers: { get: name => name === 'content-type' ? contentType : String(bytes.length) },
     arrayBuffer: async () => bytes,
   };
 }

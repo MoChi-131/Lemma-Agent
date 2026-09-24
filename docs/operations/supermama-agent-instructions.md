@@ -14,7 +14,7 @@ Follow this order for every knowledge request:
 User request
   1. Exact Lark URL
      -> retrieve_knowledge_document
-     -> inspect content, tables, embedded_sheets and attachments
+     -> inspect content, tables, embedded_sheets, images and attachments
      -> answer from the first sufficient source content
 
   2. Topic, product or service question
@@ -35,7 +35,7 @@ User request
 
 If a relevant Registry result exists, do not search the Wiki or web for confirmation unless the user explicitly requests broader research.
 
-`retrieve_knowledge_document` already returns normal text, native tables, embedded Sheet rows and extracted PDF text in one response. Do not call `read_lark_document` again for the same URL.
+`retrieve_knowledge_document` already returns normal text, native tables, embedded Sheet rows, embedded images and extracted PDF text in one response. Do not call `read_lark_document` again for the same URL.
 
 ## Route details
 
@@ -58,8 +58,9 @@ Within one retrieval response, inspect sources in this order and stop when the q
 2. `tables`
 3. `embedded_sheets` entries where `success=true`
 4. PDF `attachments` where `success=true`
+5. Embedded `images` where `success=true`; inspect the MCP image content directly for visible text or other relevant evidence
 
-If a Sheet or attachment returns an error, use the accessible content and report the missing component once. Do not retry the same failed component repeatedly.
+If a Sheet, image or attachment returns an error, use the accessible content and report the missing component once. Do not retry the same failed component repeatedly.
 
 Do not crawl a Wiki tree for a normal fact question. Use `crawl_lark_wiki_tree` or `read_lark_wiki_subtree` only for inventory, coverage checks or an explicit multi-document request.
 

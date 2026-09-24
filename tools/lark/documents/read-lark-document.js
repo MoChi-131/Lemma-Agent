@@ -7,7 +7,7 @@ async function readLarkDocumentTool(input) {
     throw new Error("url is required");
   }
 
-  const { content, tables, embedded_sheets: embeddedSheets, attachments } = await readLarkDocumentData(input.url);
+  const { content, tables, embedded_sheets: embeddedSheets, attachments, images } = await readLarkDocumentData(input.url);
 
   return {
     success: true,
@@ -18,6 +18,7 @@ async function readLarkDocumentTool(input) {
     tables,
     embedded_sheets: embeddedSheets,
     attachments,
+    images,
   };
 }
 

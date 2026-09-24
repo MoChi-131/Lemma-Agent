@@ -5,6 +5,8 @@ const DOCX_API = "https://open.larksuite.com/open-apis/docx/v1/documents";
 const BLOCK_PAGE_SIZE = 500;
 const MAX_BLOCK_PAGES = 100;
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_EMBEDDED_IMAGES = 20;
 const MAX_EXTRACTED_TEXT_CHARS = 500000;
 
 async function readDocument(documentId, { signal } = {}) {
@@ -23,9 +25,10 @@ async function readDocumentData(documentId, { signal } = {}, deps = {}) {
     readDocumentBlocks(documentId, accessToken, { signal, fetchImpl }),
   ]);
 
-  const [embeddedSheets, attachments] = await Promise.all([
+  const [embeddedSheets, attachments, images] = await Promise.all([
     readEmbeddedSheets(blocks, accessToken, { signal, fetchImpl }),
     readFileAttachments(blocks, accessToken, { signal, fetchImpl }, deps),
+    readEmbeddedImages(blocks, accessToken, { signal, fetchImpl }),
   ]);
 
   return {
@@ -33,6 +36,7 @@ async function readDocumentData(documentId, { signal } = {}, deps = {}) {
     tables: extractTables(blocks),
     embedded_sheets: embeddedSheets,
     attachments,
+    images,
   };
 }
 
@@ -205,6 +209,59 @@ function findFileAttachments(blocks) {
   }));
 }
 
+function findEmbeddedImages(blocks) {
+  return blocks.filter(block => block.image?.token).map(block => ({
+    block_id: block.block_id,
+    token: block.image.token,
+    width: block.image.width || null,
+    height: block.image.height || null,
+  }));
+}
+
+async function readEmbeddedImages(blocks, accessToken, { signal, fetchImpl }) {
+  const images = findEmbeddedImages(blocks);
+  const selected = images.slice(0, MAX_EMBEDDED_IMAGES);
+  const results = [];
+
+  for (const image of selected) {
+    try {
+      const response = await fetchImpl(
+        `https://open.larksuite.com/open-apis/drive/v1/medias/${encodeURIComponent(image.token)}/download`,
+        requestOptions(accessToken, signal),
+      );
+      if (!response.ok) throw new Error(`Image download returned HTTP ${response.status}.`);
+      const declaredSize = Number(response.headers.get("content-length"));
+      if (declaredSize > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 10 MB extraction limit.");
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (bytes.length > MAX_IMAGE_BYTES) throw new Error("Image exceeds the 10 MB extraction limit.");
+      const mimeType = String(response.headers.get("content-type") || "").split(";", 1)[0].trim().toLowerCase();
+      if (!mimeType.startsWith("image/")) throw new Error("Downloaded media is not an image.");
+
+      results.push({
+        block_id: image.block_id,
+        success: true,
+        mime_type: mimeType,
+        byte_size: bytes.length,
+        width: image.width,
+        height: image.height,
+        data: bytes.toString("base64"),
+      });
+    } catch (error) {
+      results.push(contentReadFailure(image.block_id, "IMAGE_READ_FAILED", error));
+    }
+  }
+
+  if (images.length > selected.length) {
+    results.push({
+      success: false,
+      error_code: "IMAGE_LIMIT_REACHED",
+      message: `Only the first ${MAX_EMBEDDED_IMAGES} embedded images were read.`,
+      skipped_count: images.length - selected.length,
+    });
+  }
+  return results;
+}
+
 async function readFileAttachments(blocks, accessToken, { signal, fetchImpl }, deps) {
   const parsePdf = deps.parsePdf || pdfParse;
   return Promise.all(findFileAttachments(blocks).map(async file => {
@@ -248,7 +305,7 @@ async function readFileAttachments(blocks, accessToken, { signal, fetchImpl }, d
 }
 
 function contentReadFailure(blockId, errorCode, error) {
-  const sizeError = error instanceof Error && error.message.includes("20 MB extraction limit");
+  const sizeError = error instanceof Error && error.message.includes("extraction limit");
   return {
     block_id: blockId,
     success: false,
@@ -257,6 +314,8 @@ function contentReadFailure(blockId, errorCode, error) {
       ? error.message
       : errorCode === "SHEET_READ_FAILED"
         ? "Embedded Sheet could not be read. Check Lark Sheet or Drive read permissions."
+        : errorCode === "IMAGE_READ_FAILED"
+          ? "Embedded image could not be read. Check Lark Drive download permission and image access."
         : "Attachment could not be read. Check Lark Drive download permission and file access.",
   };
 }
@@ -267,4 +326,5 @@ module.exports = {
   extractTables,
   findEmbeddedSheets,
   findFileAttachments,
+  findEmbeddedImages,
 };

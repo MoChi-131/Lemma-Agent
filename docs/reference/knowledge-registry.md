@@ -14,7 +14,7 @@ npm.cmd run test:knowledge-registry
 npm.cmd run test:knowledge-mcp:remote
 ```
 
-The live commands use `LARK_APP_ID` and `LARK_APP_SECRET` from `.env`. The project has built-in defaults for the Supermama registry and whitelist tables. `LARK_REGISTRY_URL` and `LARK_WHITELIST_URL` remain optional overrides. Registry access needs `wiki:node:read` and `base:record:retrieve`. Rich document retrieval also needs Docx read access, a Sheet or Drive read scope for embedded Sheets, and Drive media download access for attachments. The app must have access to the referenced documents and files. Do not commit `.env` or print its values.
+The live commands use `LARK_APP_ID` and `LARK_APP_SECRET` from `.env`. The project has built-in defaults for the Supermama registry and whitelist tables. `LARK_REGISTRY_URL` and `LARK_WHITELIST_URL` remain optional overrides. Registry access needs `wiki:node:read` and `base:record:retrieve`. Rich document retrieval also needs Docx read access, a Sheet or Drive read scope for embedded Sheets, and Drive media download access for attachments and embedded images. The app must have access to the referenced documents, images, and files. Do not commit `.env` or print its values.
 
 The whitelist table should use these field titles:
 
@@ -36,7 +36,7 @@ For compatibility with the live pilot table, a URL in `Source Name` is accepted 
 | `normalizeRecord(record)` | Map Base fields and calculate completeness, whitelist state and retrieval eligibility. |
 | `getKnowledgeMetadata(input, deps)` | List normalized records or find exact document URL matches. |
 | `searchKnowledgeRegistryTool(input, deps)` | Rank lightweight metadata matches before any Wiki content search. |
-| `retrieveKnowledgeDocumentTool(input, deps)` | Check an exact Registry record and read its text, native tables, embedded Sheets and PDF attachments only when retrieval is eligible. |
+| `retrieveKnowledgeDocumentTool(input, deps)` | Check an exact Registry record and read its text, native tables, embedded Sheets, embedded images and PDF attachments only when retrieval is eligible. |
 
 Detailed checks live in `integrations/lark/knowledge/knowledge-validation.js`. Its `validateRecord` and `getValidationReport` functions are intended for the Knowledge Base Management Agent and are excluded from the default MCP server.
 
