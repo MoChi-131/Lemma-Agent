@@ -57,4 +57,5 @@ test('reports an exact URL that is absent from the registry', async () => {
 
   assert.equal(result.success, false);
   assert.equal(result.error_code, 'NOT_REGISTERED');
+  assert.equal(result.next_action, 'read_lark_document_if_explicitly_requested');
 });

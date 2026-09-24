@@ -14,6 +14,7 @@ Follow this order for every knowledge request:
 User request
   1. Exact Lark URL
      -> retrieve_knowledge_document
+     -> if NOT_REGISTERED and the user explicitly requested this URL: read_lark_document once
      -> inspect content, tables, embedded_sheets, images and attachments
      -> answer from the first sufficient source content
 
@@ -35,13 +36,19 @@ User request
 
 If a relevant Registry result exists, do not search the Wiki or web for confirmation unless the user explicitly requests broader research.
 
-`retrieve_knowledge_document` already returns normal text, native tables, embedded Sheet rows, embedded images and extracted PDF text in one response. Do not call `read_lark_document` again for the same URL.
+When `retrieve_knowledge_document` succeeds, it already returns normal text, native tables, embedded Sheet rows, embedded images and extracted PDF text in one response. Do not call `read_lark_document` again for that successful URL.
 
 ## Route details
 
 ### Exact Lark URL
 
 Call `retrieve_knowledge_document` directly. It checks the Registry and retrieval eligibility before reading the body. Answer from `content`, `tables`, `embedded_sheets` and successful PDF `attachments`, never from metadata alone.
+
+If it returns `NOT_REGISTERED` and the user explicitly supplied or requested that exact URL, call `read_lark_document` once. Label the content as **unregistered** and do not describe it as approved or governed. `NOT_REGISTERED` is a routing result produced before body retrieval; do not claim `images: []` or that a whiteboard is absent based on that response. If `read_lark_document` then returns no images, report the actual image or whiteboard result from that second call.
+
+If the exact page is readable but does not contain the requested information, and the page is a Wiki root or the user refers to one of its subpages, call `search_lark_wiki` once using that supplied URL as the subtree root and one to three distinctive terms from the request. Read only the best matching child with `read_lark_document`. Do not repeatedly inspect the root page or crawl unrelated Wiki areas. Clearly label unregistered child pages as unregistered.
+
+If it returns `RETRIEVAL_NOT_ELIGIBLE`, do not bypass the governance decision with `read_lark_document`.
 
 ### Topic, product or service question
 

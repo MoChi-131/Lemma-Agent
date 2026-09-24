@@ -19,7 +19,8 @@ async function retrieveKnowledgeDocumentTool(input, deps = {}) {
     return {
       success: false,
       error_code: 'NOT_REGISTERED',
-      message: 'The exact document URL was not found in the Knowledge Registry.',
+      message: 'The exact document URL was not found in the Knowledge Registry. If the user explicitly requested this URL, read it once with read_lark_document and label the result as unregistered.',
+      next_action: 'read_lark_document_if_explicitly_requested',
       url: input.url,
     };
   }
