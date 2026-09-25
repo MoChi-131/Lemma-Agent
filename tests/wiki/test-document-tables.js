@@ -76,7 +76,7 @@ test('recognizes image file blocks that Lark exposes as image.png attachments', 
 
 test('recognizes Lark whiteboard blocks and their board token', () => {
   assert.deepEqual(findEmbeddedWhiteboards([{
-    block_id: 'board-block', block_type: 43, token: 'whiteboardToken',
+    block_id: 'board-block', block_type: 43, board: { token: 'whiteboardToken' },
   }]), [{
     block_id: 'board-block',
     token: 'whiteboardToken',
@@ -166,7 +166,7 @@ test('renders embedded Lark whiteboards as MCP-readable images', async () => {
       const value = String(url);
       if (value.endsWith('/raw_content')) return jsonResponse({ code: 0, data: { content: 'whiteboard' } });
       if (value.includes('/blocks?')) return jsonResponse({ code: 0, data: { items: [
-        { block_id: 'board-block', block_type: 43, token: 'whiteboardToken' },
+        { block_id: 'board-block', block_type: 43, board: { token: 'whiteboardToken' } },
       ], has_more: false } });
       if (value.includes('/whiteboards/whiteboardToken/download_as_image')) {
         return binaryResponse(bytes, 'image/png');

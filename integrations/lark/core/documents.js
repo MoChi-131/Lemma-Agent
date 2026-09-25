@@ -238,10 +238,12 @@ function findEmbeddedImages(blocks) {
 
 function findEmbeddedWhiteboards(blocks) {
   return blocks.filter(block => block.block_type === 43 && (
+    block.board?.token || block.board?.whiteboard_id ||
     block.token || block.whiteboard?.token || block.whiteboard?.whiteboard_id
   )).map(block => ({
     block_id: block.block_id,
-    token: block.token || block.whiteboard?.token || block.whiteboard?.whiteboard_id,
+    token: block.board?.token || block.board?.whiteboard_id ||
+      block.token || block.whiteboard?.token || block.whiteboard?.whiteboard_id,
     name: 'whiteboard',
     source_type: 'whiteboard',
     width: null,
