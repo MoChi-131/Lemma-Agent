@@ -8,7 +8,7 @@ const { registerWikiTreeTool } = require('../registrations/register-wiki-tree-to
 
 const SERVER_INFO = {
   name: 'supermama-lark',
-  version: '0.3.4',
+  version: '1.1.0',
 };
 
 /** Build one MCP server so stdio and HTTP expose the same core tools. */

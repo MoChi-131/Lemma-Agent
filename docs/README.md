@@ -19,6 +19,7 @@ Use Agent Instructions for runtime behavior and Knowledge Registry for the curre
 
 Release notes are retained under [`versions/`](versions/):
 
+- [v1.1.0](versions/v1.1.0.md)
 - [v0.1.0](versions/v0.1.0.md)
 - [v0.3.2](versions/v0.3.2.md)
 - [v0.3.3](versions/v0.3.3.md)
