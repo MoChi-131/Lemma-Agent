@@ -7,7 +7,6 @@
     "doc": "docs"
   },
   "scripts": {
-    "test:knowledge-metadata": "node tests/knowledge/test-knowledge-metadata.js",
     "test:knowledge-registry": "node --test --test-isolation=none tests/knowledge/test-knowledge-registry.js tests/knowledge/test-retrieve-knowledge-document.js tests/knowledge/test-search-knowledge-registry.js tests/knowledge/test-external-web-governance.js",
     "test:knowledge-mcp:remote": "node tests/knowledge/test-knowledge-mcp-remote.js",
     "test": "node --test --test-isolation=none tests/wiki/test-document-tables.js tests/wiki/test-wiki-tree-tool.js tests/wiki/test-wiki-subtree-tool.js tests/wiki/test-wiki-tree-mcp.js tests/wiki/test-wiki-search.js",

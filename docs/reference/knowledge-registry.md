@@ -7,9 +7,6 @@ The default retrieval module reads the Supermama Knowledge Registry from Lark Ba
 Run from `Lemma-Agent`:
 
 ```powershell
-npm.cmd run test:knowledge-metadata
-npm.cmd run test:knowledge-metadata -- --url "https://tenant.larksuite.com/wiki/DOCUMENT_TOKEN"
-npm.cmd run test:knowledge-metadata -- --report ./validation-report.md
 npm.cmd run test:knowledge-registry
 npm.cmd run test:knowledge-mcp:remote
 ```
@@ -38,7 +35,7 @@ For compatibility with the live pilot table, a URL in `Source Name` is accepted 
 | `searchKnowledgeRegistryTool(input, deps)` | Rank lightweight metadata matches before any Wiki content search. |
 | `retrieveKnowledgeDocumentTool(input, deps)` | Check an exact Registry record and read its text, native tables, embedded Sheets, embedded images and PDF attachments only when retrieval is eligible. |
 
-Detailed checks live in `integrations/lark/knowledge/knowledge-validation.js`. Its `validateRecord` and `getValidationReport` functions are intended for the Knowledge Base Management Agent and are excluded from the default MCP server.
+Detailed dictionary validation and correction reports belong to the separate Knowledge Base Management Agent. Lemma-Agent consumes only the lightweight completeness, whitelist, and eligibility fields needed for retrieval.
 
 Production calls omit `deps`. Tests inject fake token, Wiki, fetch, or registry functions so they run without credentials or network access.
 
@@ -76,11 +73,11 @@ The Lark Base column remains `Lark URL`, while normalized JSON uses the frozen `
 
 For Knowledge Base, `version` is also required for SOP, Pricing, Policy, and Product Spec. `owner_person` is recommended but does not affect completeness. Last Reviewed Date, Approved By, and Approved Date are not v1.0 completeness requirements. `N/A` counts as missing when a field is required.
 
-Approved Date is optional. When supplied, it must be today or earlier; a future value makes the record invalid. This is an approved operational constraint beyond Schema Freeze v1.0.
+Approved Date is optional retrieval metadata. Date validity, full dictionary validation, and correction guidance are managed by the Knowledge Base Management Agent.
 
 The reader also maps these optional frozen fields when their Base columns exist: `lark_owner`, `workstream`, `project_name`, `project_start_date`, and `project_end_date`. They do not affect completeness. Project dates are normalized to `YYYY-MM-DD`.
 
-## Exact allowed values
+## Governance values consumed by the retrieval gate
 
 ### Scope
 
@@ -106,7 +103,7 @@ The reader also maps these optional frozen fields when their Base columns exist:
 | Authority Level | Internal Official, External Official, Reference, Unverified |
 | Whitelist Status, External Reference only | Pending, Approved, Suspended, Rejected |
 
-The user-approved `N/A` extension is accepted for fields that do not apply to the record's Scope. It does not replace a missing required value.
+The user-approved `N/A` extension is accepted for fields that do not apply to the record's Scope. It does not replace a missing required value. The Management Agent verifies the full Scope and document-type dictionary; this reader uses the values only for completeness and eligibility decisions.
 
 ## Fields excluded from Schema Freeze v1.0
 
@@ -172,7 +169,7 @@ These tools declare read-only, non-destructive, idempotent annotations. Normal t
 
 External web search must first call `get_approved_web_domains` and restrict the search to those hosts. Every candidate or redirected final URL must then pass `check_external_urls` before the agent reads, uses or cites it. Both checks fail closed if the whitelist cannot be read.
 
-Set `ENABLE_VALIDATION_TOOLS=true` only on the Knowledge Base Management Agent to expose `get_knowledge_validation_report`. The retrieval agent performs only the minimum conflict check described in [Agent Instructions](../operations/supermama-agent-instructions.md).
+The retrieval agent performs only the minimum conflict check described in [Agent Instructions](../operations/supermama-agent-instructions.md).
 
 ## Current limits
 

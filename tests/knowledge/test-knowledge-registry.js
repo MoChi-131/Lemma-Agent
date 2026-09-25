@@ -8,9 +8,7 @@ const {
   domainMatches,
   isEmptyRecord,
 } = require('../../integrations/lark/knowledge/knowledge-registry');
-const { getValidationReport, validateRecord, attachValidation, enums } = require('../../integrations/lark/knowledge/knowledge-validation');
 const { registerKnowledgeTools } = require('../../runtime/registrations/register-knowledge-tools');
-const { registerValidationTools } = require('../../runtime/registrations/register-validation-tools');
 // Inject fake API functions: these tests need no credentials and make no network calls.
 test('reads paginated Base through Wiki using only GET requests', async () => {
   // Two pages verify cursor following and that a view cannot hide lookup records.
@@ -174,7 +172,6 @@ test('Suspended is a valid whitelist status but blocks external retrieval', asyn
 
   assert.equal(doc.whitelist_valid, false);
   assert.equal(doc.retrieval_eligible, false);
-  assert.equal(attachValidation(doc).validation_report.checks.whitelist_status_value.pass, true);
 });
 test('external retrieval combines whitelist status with metadata Authority Level and fails closed', async () => {
   const cases = [
@@ -240,28 +237,6 @@ test('empty Base rows are skipped but N/A and zero remain meaningful', async () 
   assert.equal(result.skipped_empty_record_count, 2);
   assert.equal(result.documents[0].record_id, 'kept');
 });
-test('validates enum values for Scope, Document Type, Status, Authority Level', async () => {
-  const record = { record_id: 'enum-test', fields: {
-    Title: 'Test', Scope: 'Knowledge Base', 'Primary Domain': 'IT',
-    'Document Type': 'SOP', 'Authority Level': 'Internal Official', Status: 'Draft',
-    'Lark URL': 'https://example.com/doc', 'Owner Person': [{ name: 'Alice' }],
-    'Last Reviewed Date': '2024-01-15',
-  } };
-  
-  const result = await getValidationReport({}, { read: async () => [record] });
-  const doc = result.documents[0];
-  
-  // Valid enums should pass
-  assert.equal(doc.validation_report.checks.scope_value.pass, true);
-  assert.equal(doc.validation_report.checks.document_type_value.pass, true);
-  assert.equal(doc.validation_report.checks.status_value.pass, true);
-  assert.equal(doc.validation_report.checks.authority_level_value.pass, true);
-  
-  // Test invalid enum
-  const badRecord = { ...record, fields: { ...record.fields, Status: 'InvalidStatus' } };
-  const badResult = await getValidationReport({}, { read: async () => [badRecord] });
-  assert.equal(badResult.documents[0].validation_report.checks.status_value.pass, false);
-});
 test('Schema Freeze v1.0 required fields exclude owner, review, and approval-workflow fields', async () => {
   const result = await getKnowledgeMetadata({}, { read: async () => [
     { record_id: 'kb', fields: {
@@ -319,53 +294,6 @@ test('optional frozen fields are normalized without affecting completeness', asy
   assert.equal(doc.project_end_date, '2026-09-30');
   assert.equal(doc.metadata_complete, true);
 });
-test('dictionary enums and Scope-specific document types are exact', () => {
-  assert.deepEqual(enums.status, ['Draft', 'Review', 'Approved', 'Archived']);
-  const retiredStatus = validateRecord({ scope: 'Knowledge Base', status: 'Active' }, [], 'retired-status');
-  assert.equal(retiredStatus.checks.status_value.pass, false);
-  assert.deepEqual(enums.authority_level, ['Internal Official', 'External Official', 'Reference', 'Unverified']);
-  assert.deepEqual(enums.whitelist_status, ['Pending', 'Approved', 'Suspended', 'Rejected']);
-  assert.ok(enums.document_type_by_scope.Workspace.includes('Architecture'));
-  assert.ok(enums.document_type_by_scope['External Reference'].includes('Official Notice'));
-  assert.equal(enums.document_type.includes('Process'), false);
-  const invalid = validateRecord({ scope: 'External Reference', primary_domain: 'Property', document_type: 'SOP' }, [], 'scope-type');
-  assert.equal(invalid.checks.document_type_value.pass, false);
-});
-test('v1.0 ignores excluded review-cycle Base columns', async () => {
-  const result = await getValidationReport({}, { read: async () => [{ record_id: 'excluded-fields', fields: {
-    Title: 'FAQ', 'Lark URL': 'https://example.com/faq', Scope: 'Knowledge Base',
-    'Primary Domain': 'Service', 'Document Type': 'FAQ',
-    'Authority Level': 'Internal Official', Status: 'Draft',
-    'Last Reviewed Date': 'invalid',
-    'Review Cycle Days': -10, 'Next Review Date': 'invalid',
-  } }] });
-  const doc = result.documents[0];
-
-  assert.equal(doc.validation_status, 'valid');
-  assert.equal(doc.validation_report.summary.failed, 0);
-  assert.equal(doc.approved_date, null);
-  assert.equal(doc.review_cycle_days, undefined);
-});
-test('optional Approved Date cannot be in the future', async () => {
-  const baseFields = {
-    Title: 'Approved guide', 'Lark URL': 'https://example.com/approved-guide',
-    Scope: 'Knowledge Base', 'Primary Domain': 'Service', 'Document Type': 'Guide',
-    'Authority Level': 'Internal Official', Status: 'Approved',
-  };
-  const result = await getValidationReport({}, { read: async () => [
-    { record_id: 'past', fields: { ...baseFields, 'Approved Date': '2000-01-01' } },
-    { record_id: 'future', fields: { ...baseFields, 'Approved Date': '2999-01-01' } },
-    { record_id: 'missing', fields: baseFields },
-  ] });
-  const byId = Object.fromEntries(result.documents.map(doc => [doc.record_id, doc]));
-
-  assert.equal(byId.past.validation_report.checks.approved_date_not_future.pass, true);
-  assert.equal(byId.past.validation_status, 'valid');
-  assert.equal(byId.future.validation_report.checks.approved_date_not_future.pass, false);
-  assert.equal(byId.future.validation_status, 'invalid');
-  assert.equal(byId.missing.validation_report.checks.approved_date_not_future, undefined);
-  assert.equal(byId.missing.metadata_complete, true);
-});
 test('knowledge MCP registrations are read-only and shared by both transports', () => {
   const registrations = [];
   registerKnowledgeTools({ registerTool: (name, config, handler) => registrations.push({ name, config, handler }) });
@@ -380,10 +308,4 @@ test('knowledge MCP registrations are read-only and shared by both transports', 
     assert.equal(item.config.annotations.readOnlyHint, true);
     assert.equal(item.config.annotations.destructiveHint, false);
   }
-});
-test('management validation tool is registered separately', () => {
-  const registrations = [];
-  registerValidationTools({ registerTool: (name, config) => registrations.push({ name, config }) });
-  assert.deepEqual(registrations.map(item => item.name), ['get_knowledge_validation_report']);
-  assert.equal(registrations[0].config.annotations.readOnlyHint, true);
 });

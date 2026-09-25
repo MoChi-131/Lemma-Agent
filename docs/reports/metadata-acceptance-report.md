@@ -58,7 +58,6 @@ Run the evidence again with:
 
 ```powershell
 npm.cmd run test:knowledge-registry
-npm.cmd run test:knowledge-metadata -- --report validation-report.md
 ```
 
 In two terminals:

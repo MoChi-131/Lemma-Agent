@@ -5,7 +5,7 @@ Supermama AI Assistant 的 Lark MCP 與知識治理專案。
 ## Current capabilities
 
 - Wiki tree discovery, subtree body reading and literal search.
-- Lark Base metadata validation and external-domain whitelist checks.
+- Lark Base metadata completeness, retrieval eligibility, and external-domain whitelist checks.
 - Governed document retrieval through `retrieval_eligible`.
 - A lightweight agent-level check for obvious contradictions in retrieved content.
 - Stdio and Streamable HTTP MCP transports using one shared server factory.

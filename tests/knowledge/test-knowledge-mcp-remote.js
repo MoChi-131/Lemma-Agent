@@ -45,8 +45,6 @@ async function main() {
     for (const name of ['get_knowledge_metadata', 'search_knowledge_registry', 'retrieve_knowledge_document', 'get_approved_web_domains', 'check_external_urls']) {
       assert.ok(toolNames.includes(name), `Missing tool: ${name}`);
     }
-    const hasValidationTool = toolNames.includes('get_knowledge_validation_report');
-
     const { result: all } = await callTool(client, 'get_knowledge_metadata');
     assert.equal(all.success, true);
     assert.equal(all.record_count, expectedCount);
@@ -80,15 +78,6 @@ async function main() {
     assert.equal(absent.found, false);
     assert.equal(absent.record_count, 0);
 
-    let validationSummary = null;
-    if (hasValidationTool) {
-      const { response: reportResponse, result: report } = await callTool(client, 'get_knowledge_validation_report');
-      const reportText = reportResponse.content?.find(item => item.type === 'text')?.text || '';
-      assert.match(reportText, /^# Knowledge Registry Validation Report/m);
-      assert.equal(report.record_count, expectedCount);
-      validationSummary = report.summary;
-    }
-
     await client.listTools();
     assert.equal(transport.sessionId, session, 'MCP session changed unexpectedly');
 
@@ -102,7 +91,6 @@ async function main() {
       missing_url_lookup: 'PASS',
       approved_external_retrieval: 'PASS',
       blocked_external_retrieval: 'PASS',
-      validation_report: validationSummary ? 'PASS' : 'NOT_ENABLED',
       session_reused: true,
     }, null, 2));
   } finally {
