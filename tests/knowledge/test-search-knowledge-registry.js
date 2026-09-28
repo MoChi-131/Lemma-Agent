@@ -58,3 +58,19 @@ test('returns an empty result for Wiki fallback when metadata does not match', a
   assert.equal(result.result_count, 0);
   assert.deepEqual(result.results, []);
 });
+
+test('applies authority ranking for business and government searches', async () => {
+  const rankingDocs = [
+    { record_id: 'reference', title: 'housing rule', tags: ['housing'], scope: 'Knowledge Base', authority_level: 'Reference', version: 'v2.0', retrieval_eligible: true },
+    { record_id: 'internal', title: 'housing rule', tags: ['housing'], scope: 'Knowledge Base', authority_level: 'Internal Official', version: 'v1.0', retrieval_eligible: true },
+    { record_id: 'external', title: 'housing rule', tags: ['housing'], scope: 'External Reference', authority_level: 'External Official', version: 'v1.0', retrieval_eligible: true },
+  ];
+  const rankingDeps = { getKnowledgeMetadata: async () => ({ success: true, documents: rankingDocs }) };
+
+  const business = await searchKnowledgeRegistryTool({ query: 'housing', ranking_context: 'business' }, rankingDeps);
+  const government = await searchKnowledgeRegistryTool({ query: 'housing', ranking_context: 'government' }, rankingDeps);
+
+  assert.deepEqual(business.results.map(result => result.record_id), ['internal', 'reference', 'external']);
+  assert.deepEqual(government.results.map(result => result.record_id), ['external', 'internal', 'reference']);
+  assert.equal(government.results[0].ranking.authority_rank, 3);
+});

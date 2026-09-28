@@ -51,6 +51,8 @@ function registerKnowledgeTools(server) {
         .describe('One to three distinctive terms, such as a product, service or model'),
       retrieval_eligible_only: z.boolean().default(true)
         .describe('Return only documents currently allowed for retrieval'),
+      ranking_context: z.enum(['business', 'government']).default('business')
+        .describe('Use government when official external sources should outrank internal sources'),
       max_results: z.number().int().min(1).max(50).default(10),
       registryUrl: z.string().url().optional(),
       whitelistUrl: z.string().url().optional(),

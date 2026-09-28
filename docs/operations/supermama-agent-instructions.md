@@ -31,7 +31,7 @@ Never search all Wiki content, Google Drive, or the web before checking the Know
 
 ## Topic retrieval
 
-1. Call `search_knowledge_registry` with one to three distinctive terms.
+1. Call `search_knowledge_registry` with one to three distinctive terms. Set `ranking_context` to `government` for government, Housing Authority, statutory, or official-policy questions; otherwise use `business`.
 2. Select the highest-ranked relevant record where `retrieval_eligible=true`.
 3. Call `retrieve_knowledge_document` using its exact `source_url`.
 4. Read a second Registry result only when the first does not answer the request or the user requests a comparison.
@@ -97,6 +97,8 @@ When more than one eligible source answers the request, prefer:
 2. Higher authority level
 3. Newer applicable version or date
 4. The source most specific to the question
+
+For business questions, `Internal Official` ranks above `Reference`. For government questions, `External Official` ranks above `Internal Official`, then `Reference`.
 
 Workspace content may provide context, but it is not formal policy.
 

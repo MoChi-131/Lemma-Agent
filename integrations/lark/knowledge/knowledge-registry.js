@@ -1,4 +1,6 @@
-const DEFAULT_REGISTRY_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblhBZGzkAfGXIzw&view=vewPu2Lfe7';
+// Production Registry Base for governed knowledge retrieval. An explicit
+// LARK_REGISTRY_URL override still takes precedence for tests or other tenants.
+const DEFAULT_REGISTRY_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tbllHIJ3Mx3zQ1BS&view=vewPu2Lfe7';
 const DEFAULT_WHITELIST_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblxxLSOp5lg3z9g';
 
 const LARK_HOST_PATTERN = /^[a-z0-9.-]+\.larksuite\.com$/i;

@@ -167,6 +167,8 @@ Both `mcp:start` using stdio and `mcp:http` register these retrieval tools by de
 
 These tools declare read-only, non-destructive, idempotent annotations. Normal topic retrieval starts with `search_knowledge_registry`; a relevant result then goes to `retrieve_knowledge_document`. `search_lark_wiki` is a fallback only when the Registry has no relevant result or the user explicitly requests other documents.
 
+`search_knowledge_registry` accepts `ranking_context: business | government`. It filters eligibility first, then ranks exact matches, authority, scope, version, and broad metadata matches. Business ranking prefers Internal Official over Reference; government ranking prefers External Official over Internal Official over Reference.
+
 External web search must first call `get_approved_web_domains` and restrict the search to those hosts. Every candidate or redirected final URL must then pass `check_external_urls` before the agent reads, uses or cites it. Both checks fail closed if the whitelist cannot be read.
 
 The retrieval agent performs only the minimum conflict check described in [Agent Instructions](../operations/supermama-agent-instructions.md).
