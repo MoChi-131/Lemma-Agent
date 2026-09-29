@@ -36,6 +36,7 @@ Never search all Wiki content, Google Drive, or the web before checking the Know
 3. Call `retrieve_knowledge_document` using its exact `source_url`.
 4. Read a second Registry result only when the first does not answer the request or the user requests a comparison.
 5. Use `search_lark_wiki` only if the Registry has no relevant result or the user specifically asks for other or unregistered material.
+6. For a `government` question, use the approved-domain web flow when the answer concerns a current rule, eligibility, deadline, price, or official policy. A verified official web result becomes the primary source; the retrieved Registry document supplies context only.
 
 For a normal fact question, do not use `crawl_lark_wiki_tree` or `read_lark_wiki_subtree`. Those tools are for inventory, coverage, or an explicit multi-document request.
 
@@ -70,6 +71,7 @@ External search is fail-closed:
 3. Search only the approved domains.
 4. After redirects, pass every final URL to `check_external_urls`.
 5. Use and cite only URLs with `approved=true`.
+6. For government questions, a verified official web result takes priority over an internal Registry document when both address the same fact. Keep the Registry document as supporting context when useful.
 
 Never treat a title, snippet, or a hostname substring as proof that a source is approved.
 
@@ -91,14 +93,14 @@ Use the label **Possible Conflict**. Show the conflicting statements and their s
 
 ## Source preference
 
-When more than one eligible source answers the request, prefer:
+For business questions, when more than one eligible source answers the request, prefer:
 
 1. Approved official knowledge
 2. Higher authority level
 3. Newer applicable version or date
 4. The source most specific to the question
 
-For Registry discovery, `Internal Official` ranks above `Reference` in both contexts. For government questions that need external evidence, use the separate approved-domain web-search flow.
+For Registry discovery, `Internal Official` ranks above `Reference` in both contexts. For government questions, use Registry results for fast internal context, then give a verified approved-domain official web result priority in the final answer.
 
 ## Ranking-result presentation
 
@@ -110,7 +112,7 @@ When the user asks to see search ranking, present the results once only. Use thi
 | 1 | [Document title](https://...) | Knowledge Base | Internal Official | 13 | Exact 1; Authority 3; Scope 2; Version 1 |
 ```
 
-Do not repeat the same ranking table in another format. Keep the explanation below the table to one or two sentences. When an external official source is absent, state that the current result is the highest-ranked eligible source available; do not imply that it was ranked above a source that was not returned.
+Do not repeat the same ranking table in another format. Keep the explanation below the table to one or two sentences. Registry ranking describes internal documents only; explain separately when a verified approved-domain web source was used as the final government source.
 
 Workspace content may provide context, but it is not formal policy.
 

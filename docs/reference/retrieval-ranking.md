@@ -41,7 +41,7 @@ Set `ranking_context` when calling `search_knowledge_registry`.
 | Knowledge Base | 2 |
 | Workspace | 1 |
 
-Use `business` for normal company products, services, prices, procedures, and internal knowledge. Use `government` for statutory, Housing Authority, government, or official-policy questions. Both contexts rank internal Registry records in the same order. The `government` context tells the agent that any necessary follow-up web research must use the approved-domain whitelist.
+Use `business` for normal company products, services, prices, procedures, and internal knowledge. Use `government` for statutory, Housing Authority, government, or official-policy questions. Both contexts rank internal Registry records in the same order. The `government` context tells the agent to use the approved-domain whitelist for current official web evidence; a verified official web result then takes priority in the final answer, outside this Registry ranking.
 
 ## Metadata match-score weights
 

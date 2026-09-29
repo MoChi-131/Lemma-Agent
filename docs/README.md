@@ -7,6 +7,7 @@ Use this page as the entry point for current project documentation.
 | Document | Purpose |
 | --- | --- |
 | [Agent Instructions](operations/supermama-agent-instructions.md) | Production retrieval order, speed rules, source handling and minimum conflict check. |
+| [ChatGPT Acceptance Prompts](operations/test-prompts.md) | Copy-ready end-to-end prompts with observable pass/fail oracles. |
 | [Knowledge Registry](reference/knowledge-registry.md) | Current metadata schema, whitelist, retrieval gate, tools and test commands. |
 | [Retrieval Ranking](reference/retrieval-ranking.md) | Ranking contexts, score tables, result ordering, and returned ranking evidence. |
 | [Project Structure](architecture/project-structure.md) | Code ownership, directory layout and dependency direction. |
