@@ -7,6 +7,7 @@ const {
   findEmbeddedImages,
   findEmbeddedWhiteboards,
   readDocumentData,
+  summarizeWhiteboardNodes,
 } = require('../../integrations/lark/core/documents');
 const { documentResult } = require('../../runtime/core/document-output');
 
@@ -171,6 +172,12 @@ test('renders embedded Lark whiteboards as MCP-readable images', async () => {
       if (value.includes('/whiteboards/whiteboardToken/download_as_image')) {
         return binaryResponse(bytes, 'image/png');
       }
+      if (value.includes('/whiteboards/whiteboardToken/nodes')) {
+        return jsonResponse({ code: 0, data: { nodes: [{
+          id: 'text-1', type: 'mind_map', x: 10, y: 20, width: 100, height: 30,
+          text: { text: 'Whiteboard source text' },
+        }] } });
+      }
       throw new Error(`Unexpected URL: ${value}`);
     },
   });
@@ -179,6 +186,52 @@ test('renders embedded Lark whiteboards as MCP-readable images', async () => {
   assert.equal(result.images[0].source_type, 'whiteboard');
   assert.equal(result.images[0].mime_type, 'image/png');
   assert.equal(result.images[0].data, bytes.toString('base64'));
+  assert.equal(result.whiteboards[0].success, true);
+  assert.equal(result.whiteboards[0].text, 'Whiteboard source text');
+  assert.deepEqual(result.whiteboards[0].canvas_bounds, {
+    left: 10, top: 20, right: 110, bottom: 50, width: 100, height: 30,
+  });
+});
+
+test('summarizes all whiteboard text nodes and image-node layout', () => {
+  const summary = summarizeWhiteboardNodes([
+    { id: 'text-1', type: 'mind_map', x: -10, y: 20, width: 100, height: 30, text: { text: 'First rule' } },
+    { id: 'image-1', type: 'image', x: 200, y: -5, width: 80, height: 60 },
+    { id: 'text-2', type: 'shape', x: 50, y: 100, width: 90, height: 20, text: { text: 'Second rule' } },
+  ]);
+
+  assert.equal(summary.text, 'First rule\nSecond rule');
+  assert.equal(summary.text_node_count, 2);
+  assert.equal(summary.image_node_count, 1);
+  assert.deepEqual(summary.canvas_bounds, {
+    left: -10, top: -5, right: 280, bottom: 120, width: 290, height: 125,
+  });
+});
+
+test('downloads original images embedded in whiteboard nodes', async () => {
+  const originalBytes = Buffer.from('original whiteboard image');
+  const result = await readDocumentData('document-id', {}, {
+    getToken: async () => 'token',
+    fetch: async url => {
+      const value = String(url);
+      if (value.endsWith('/raw_content')) return jsonResponse({ code: 0, data: { content: 'whiteboard' } });
+      if (value.includes('/blocks?')) return jsonResponse({ code: 0, data: { items: [
+        { block_id: 'board-block', block_type: 43, board: { token: 'whiteboardToken' } },
+      ], has_more: false } });
+      if (value.includes('/whiteboards/whiteboardToken/nodes')) return jsonResponse({ code: 0, data: { nodes: [
+        { id: 'node-image', type: 'image', image: { token: 'originalImageToken' }, x: 0, y: 0, width: 800, height: 600 },
+      ] } });
+      if (value.includes('/whiteboards/whiteboardToken/download_as_image')) return binaryResponse(Buffer.from('preview'), 'image/png');
+      if (value.includes('/medias/originalImageToken/download')) return binaryResponse(originalBytes, 'image/png');
+      throw new Error(`Unexpected URL: ${value}`);
+    },
+  });
+
+  const original = result.images.find(image => image.source_type === 'whiteboard_image_node');
+  assert.equal(original.success, true);
+  assert.equal(original.width, 800);
+  assert.equal(original.data, originalBytes.toString('base64'));
+  assert.equal(result.whiteboards[0].image_node_count, 1);
 });
 
 test('emits image bytes as MCP image content without duplicating them in JSON', () => {

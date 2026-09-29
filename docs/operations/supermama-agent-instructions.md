@@ -48,9 +48,10 @@ Inspect returned evidence in this order and stop as soon as the answer is suppor
 2. Native `tables`
 3. Successful `embedded_sheets`
 4. Successful PDF `attachments`
-5. Successful `images`, including `source_type=whiteboard`
+5. Successful `whiteboards` original text and layout data
+6. Successful `images`, including original `whiteboard_image_node` media and whiteboard previews
 
-Use the MCP image content to inspect visible text in an image or whiteboard. If a Sheet, file, image, or whiteboard cannot be read, use the accessible evidence and state the unavailable component once. Do not retry the same failed component in the same request.
+Use `whiteboards[].text` as the primary evidence for a Lark whiteboard. Inspect `images` with `source_type=whiteboard_image_node` for original embedded images. Use the preview image only for visual layout. If a Sheet, file, image, or whiteboard cannot be read, use the accessible evidence and state the unavailable component once. Do not retry the same failed component in the same request.
 
 ## Metadata, Google Drive, and external web
 

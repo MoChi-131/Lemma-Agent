@@ -96,7 +96,8 @@ https://ysgjyjx6z20y.sg.larksuite.com/wiki/FB3Pw3o8FikWIykqX4lljHlGg8b
 **Oracle**
 
 - Attempts the exact registered-document retrieval path first.
-- Inspects returned image or whiteboard evidence when it is available.
+- Uses returned `whiteboards[].text` and text-node evidence before relying on a whiteboard preview image.
+- Inspects the preview image only for layout or non-text content.
 - Does not invent text that is absent, inaccessible, or unreadable.
 - If the page is unregistered, labels it **Unregistered** before using a permitted direct read.
 

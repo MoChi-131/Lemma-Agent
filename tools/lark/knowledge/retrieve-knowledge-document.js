@@ -47,6 +47,7 @@ async function retrieveKnowledgeDocumentTool(input, deps = {}) {
     embedded_sheets: document.embedded_sheets || [],
     attachments: document.attachments || [],
     images: document.images || [],
+    whiteboards: document.whiteboards || [],
   };
 }
 

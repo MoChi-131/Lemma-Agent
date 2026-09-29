@@ -19,6 +19,7 @@ test('returns content for a registered retrieval-eligible document', async () =>
         content: 'Panasonic 420mm product information',
         tables: [{ rows: [['Model', 'Size'], ['Panasonic', '420mm']] }],
         images: [{ block_id: 'image-1', success: true, mime_type: 'image/png', data: 'aW1hZ2U=' }],
+        whiteboards: [{ block_id: 'board-1', success: true, text: 'Whiteboard rule' }],
       };
     },
   });
@@ -28,6 +29,7 @@ test('returns content for a registered retrieval-eligible document', async () =>
   assert.deepEqual(result.tables[0].rows[1], ['Panasonic', '420mm']);
   assert.equal(result.metadata.title, 'Product guide');
   assert.equal(result.images[0].mime_type, 'image/png');
+  assert.equal(result.whiteboards[0].text, 'Whiteboard rule');
   assert.equal(bodyRead, true);
 });
 
