@@ -1,6 +1,8 @@
 # Retrieval Ranking
 
-`search_knowledge_registry` ranks Registry metadata before any document body is read. It is a discovery step: the top eligible result is then passed to `retrieve_knowledge_document`.
+`search_knowledge_registry` ranks internal Lark Registry metadata before any document body is read. It is a discovery step: the top eligible result is then passed to `retrieve_knowledge_document`.
+
+The Registry stores Lark knowledge only. External websites are never Registry records and do not affect Registry ranking. If an answer needs web research, use `get_approved_web_domains` before searching and `check_external_urls` before reading or citing a result.
 
 ## Ranking order
 
@@ -10,8 +12,8 @@ The tool compares signals in this order. It does not combine them into one total
 | --- | --- | --- |
 | 1 | Retrieval eligibility | `retrieval_eligible=true` ranks before `false`. By default, ineligible records are filtered out. |
 | 2 | Exact match | Full-query title match, then full-query tag match, then an exact individual term match. |
-| 3 | Authority | Uses the question's ranking context. |
-| 4 | Scope | Prefers the scope appropriate to that context. |
+| 3 | Authority | `Internal Official` ranks above `Reference`. |
+| 4 | Scope | `Knowledge Base` ranks above `Workspace`. |
 | 5 | Version | Prefers the higher numeric version when earlier signals tie. |
 | 6 | Metadata match score | Uses weighted matches across Registry fields. |
 
@@ -24,24 +26,22 @@ The tool compares signals in this order. It does not combine them into one total
 | 1 | At least one query term exactly equals a tag or standalone title term. |
 | 0 | No exact match. |
 
-## Authority and scope
+## Context, authority, and scope
 
 Set `ranking_context` when calling `search_knowledge_registry`.
 
 | Authority Level | `business` | `government` |
 | --- | ---: | ---: |
-| External Official | 1 | 3 |
-| Internal Official | 3 | 2 |
-| Reference | 2 | 1 |
+| Internal Official | 3 | 3 |
+| Reference | 2 | 2 |
 | Unverified or blank | 0 | 0 |
 
-| Scope | `business` | `government` |
-| --- | ---: | ---: |
-| Knowledge Base | 2 | 1 |
-| External Reference | 1 | 2 |
-| Workspace | Not eligible | Not eligible |
+| Scope | Rank |
+| --- | ---: |
+| Knowledge Base | 2 |
+| Workspace | 1 |
 
-Use `business` for normal company products, services, prices, procedures, and internal knowledge. Use `government` for statutory, Housing Authority, government, or official-policy questions. Government context gives an approved `External Official` source priority over internal sources.
+Use `business` for normal company products, services, prices, procedures, and internal knowledge. Use `government` for statutory, Housing Authority, government, or official-policy questions. Both contexts rank internal Registry records in the same order. The `government` context tells the agent that any necessary follow-up web research must use the approved-domain whitelist.
 
 ## Metadata match-score weights
 

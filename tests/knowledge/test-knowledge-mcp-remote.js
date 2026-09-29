@@ -51,22 +51,22 @@ async function main() {
     assert.equal(all.documents.length, expectedCount);
     for (const doc of all.documents) {
       assert.equal(Object.hasOwn(doc, 'metadata'), false, 'Frozen output must not contain a metadata wrapper');
-      for (const key of ['title', 'source_url', 'scope', 'metadata_complete', 'missing_fields', 'whitelist_valid', 'retrieval_eligible']) {
+      for (const key of ['title', 'source_url', 'scope', 'metadata_complete', 'missing_fields', 'retrieval_eligible']) {
         assert.ok(Object.hasOwn(doc, key), `Flat document output is missing ${key}`);
       }
     }
 
     const valid = all.documents.find(doc => doc.metadata_complete && doc.source_url);
     const invalid = all.documents.find(doc => !doc.metadata_complete);
-    const approvedExternal = all.documents.find(doc =>
-      doc.scope === 'External Reference' && doc.retrieval_eligible === true);
-    const blockedExternal = all.documents.find(doc =>
-      doc.scope === 'External Reference' && doc.retrieval_eligible === false);
+    const eligibleKnowledgeBase = all.documents.find(doc =>
+      doc.scope === 'Knowledge Base' && doc.retrieval_eligible === true);
+    const ineligibleWorkspace = all.documents.find(doc =>
+      doc.scope === 'Workspace' && doc.retrieval_eligible === false);
 
     assert.ok(valid, 'Expected at least one valid record with a URL');
     assert.ok(invalid, 'Expected at least one intentional invalid record');
-    assert.ok(approvedExternal, 'Expected an approved External Reference');
-    assert.ok(blockedExternal, 'Expected a blocked External Reference negative case');
+    assert.ok(eligibleKnowledgeBase, 'Expected an eligible Knowledge Base record');
+    assert.ok(ineligibleWorkspace, 'Expected a Workspace record blocked from formal retrieval');
 
     const { result: found } = await callTool(client, 'get_knowledge_metadata', { url: valid.source_url });
     assert.equal(found.found, true);
@@ -89,8 +89,8 @@ async function main() {
       metadata_incomplete_count: all.documents.filter(doc => !doc.metadata_complete).length,
       exact_url_lookup: 'PASS',
       missing_url_lookup: 'PASS',
-      approved_external_retrieval: 'PASS',
-      blocked_external_retrieval: 'PASS',
+      eligible_knowledge_base_retrieval: 'PASS',
+      workspace_retrieval_blocked: 'PASS',
       session_reused: true,
     }, null, 2));
   } finally {

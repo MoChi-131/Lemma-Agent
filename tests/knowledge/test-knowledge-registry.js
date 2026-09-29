@@ -35,84 +35,18 @@ test('lookup preserves missing fields and Pending; absent row differs from failu
   assert.ok(result.documents[0].missing_fields.includes('version'));
   assert.equal(result.documents[0].metadata_complete, false);
   assert.equal((await getKnowledgeMetadata({ url: 'https://example.com/missing' }, { read })).found, false);
-  const external = await getKnowledgeMetadata({}, { read: async () => [{ fields: { Scope: 'External Reference', 'Whitelist Status': 'Pending' } }] });
-  assert.equal(external.documents[0].whitelist_valid, false);
-  const complete = await getKnowledgeMetadata({}, { read: async () => [{ record_id: 'test1', fields: {
-    Title: 'External guide', Scope: 'External Reference', 'Primary Domain': 'Property',
-    'Document Type': 'Guide', 'Authority Level': 'External Official',
-    'Lark URL': 'https://example.com/guide',
-  } }] });
-  // Complete metadata can still describe an unapproved external source.
-  assert.equal(complete.documents[0].metadata_complete, true);
-  assert.equal(complete.documents[0].whitelist_valid, false);
-  assert.equal(complete.documents[0].retrieval_eligible, false);
   await assert.rejects(getKnowledgeMetadata({}, { read: async () => { throw Error('failure'); } }));
 });
-test('external retrieval eligibility comes from the separate whitelist table', async () => {
-  const registryRows = [
-    { record_id: 'approved-document', fields: {
-      Title: 'Housing Authority notice',
-      'Lark URL': 'https://hos.housingauthority.gov.hk/notice.html',
-      Scope: 'External Reference',
-      'Primary Domain': 'Property',
-      'Document Type': 'Official Notice',
-      'Authority Level': 'External Official',
-    } },
-    { record_id: 'unknown-document', fields: {
-      Title: 'Unknown source',
-      'Lark URL': 'https://example.com/article',
-      Scope: 'External Reference',
-      'Primary Domain': 'Property',
-      'Document Type': 'Reference',
-      'Authority Level': 'External Official',
-      'Source Domain': 'example.com',
-      'Whitelist Status': 'Approved',
-    } },
-  ];
-  const whitelistRows = [{ record_id: 'white-1', fields: {
-    'Whitelist Status': 'Approved',
-    'Source Name': { link: 'http://housingauthority.gov.hk', text: 'housingauthority.gov.hk' },
-    Description: 'Hong Kong Housing Authority',
-    'Approved By': [{ name: 'Penny' }],
-    'Approved Date': '2026/09/16',
-  } }];
-
-  const result = await getKnowledgeMetadata({}, {
-    read: async () => registryRows,
-    readWhitelist: async () => whitelistRows,
-  });
-
-  assert.equal(result.documents[0].retrieval_eligible, true);
-  assert.equal(result.documents[0].metadata_complete, true);
-  assert.equal(result.documents[0].whitelist_valid, true);
-  assert.equal(result.documents[0].source_domain, 'hos.housingauthority.gov.hk');
-  assert.equal(result.documents[0].whitelist_status, 'Approved');
-  assert.equal(result.documents[0].missing_fields.includes('source_domain'), false);
-  assert.equal(result.documents[0].missing_fields.includes('whitelist_status'), false);
-  assert.equal(result.documents[0].whitelist_check.document_domain, 'hos.housingauthority.gov.hk');
-  assert.equal(result.documents[0].whitelist_check.matched_domain, 'housingauthority.gov.hk');
-  assert.equal(result.documents[0].whitelist_check.source_name, 'Hong Kong Housing Authority');
-  // The metadata row says Approved, but an absent whitelist domain must still fail closed.
-  assert.equal(result.documents[1].retrieval_eligible, false);
-  assert.equal(result.documents[1].whitelist_valid, false);
-  assert.equal(result.documents[1].source_domain, 'example.com');
-  assert.equal(result.documents[1].whitelist_status, null);
-  assert.equal(result.documents[1].whitelist_check.matched_domain, null);
-});
-test('Schema Freeze v1.0 retrieval gate applies completeness, scope, status, authority, and whitelist', async () => {
+test('Registry retrieval gate applies completeness, scope, status, and authority', async () => {
   const records = [
     ['kb-approved', 'Knowledge Base', 'Guide', 'Approved', 'Internal Official'],
     ['kb-reference', 'Knowledge Base', 'Guide', 'Approved', 'Reference'],
     ['kb-draft', 'Knowledge Base', 'Guide', 'Draft', 'Internal Official'],
     ['kb-unverified', 'Knowledge Base', 'Guide', 'Approved', 'Unverified'],
     ['workspace', 'Workspace', 'Meeting Notes', null, null],
-    ['external-approved', 'External Reference', 'Guide', null, 'External Official'],
-    ['external-unverified', 'External Reference', 'Guide', null, 'Unverified'],
   ].map(([id, scope, documentType, status, authority]) => ({ record_id: id, fields: {
     Title: id,
-    'Lark URL': scope === 'External Reference'
-      ? `https://${id === 'external-unverified' ? 'unverified.example' : 'approved.example'}/${id}`
-      : `https://example.com/${id}`,
+    'Lark URL': `https://example.com/${id}`,
     Scope: scope,
     'Primary Domain': scope === 'Workspace' ? 'Operation' : 'Service',
     'Document Type': documentType,
@@ -127,14 +61,6 @@ test('Schema Freeze v1.0 retrieval gate applies completeness, scope, status, aut
 
   const result = await getKnowledgeMetadata({}, {
     read: async () => records,
-    readWhitelist: async () => [
-      { record_id: 'allow', fields: {
-        Domain: 'approved.example', 'Whitelist Status': 'Approved',
-      } },
-      { record_id: 'unverified', fields: {
-        Domain: 'unverified.example', 'Whitelist Status': 'Approved',
-      } },
-    ],
   });
   const byId = Object.fromEntries(result.documents.map(doc => [doc.record_id, doc]));
 
@@ -143,9 +69,6 @@ test('Schema Freeze v1.0 retrieval gate applies completeness, scope, status, aut
   assert.equal(byId['kb-draft'].retrieval_eligible, false);
   assert.equal(byId['kb-unverified'].retrieval_eligible, false);
   assert.equal(byId.workspace.retrieval_eligible, false);
-  assert.equal(byId.workspace.whitelist_valid, null);
-  assert.equal(byId['external-approved'].retrieval_eligible, true);
-  assert.equal(byId['external-unverified'].retrieval_eligible, false);
   assert.equal(byId['kb-incomplete'].metadata_complete, false);
   assert.equal(byId['kb-incomplete'].retrieval_eligible, false);
 });
@@ -156,66 +79,6 @@ test('domain matching accepts real subdomains and rejects lookalike domains', ()
   assert.equal(domainMatches('fakehousingauthority.gov.hk', 'housingauthority.gov.hk'), false);
   assert.equal(domainMatches('housingauthority.gov.hk.fake-site.com', 'housingauthority.gov.hk'), false);
   assert.equal(domainMatches('housingauthority.gov.hk.example.com', 'housingauthority.gov.hk'), false);
-});
-test('Suspended is a valid whitelist status but blocks external retrieval', async () => {
-  const result = await getKnowledgeMetadata({}, {
-    read: async () => [{ record_id: 'suspended-doc', fields: {
-      Title: 'Suspended source', 'Lark URL': 'https://suspended.example/notice',
-      Scope: 'External Reference', 'Primary Domain': 'Property',
-      'Document Type': 'Official Notice', 'Authority Level': 'External Official',
-    } }],
-    readWhitelist: async () => [{ record_id: 'suspended-domain', fields: {
-      Domain: 'suspended.example', 'Whitelist Status': 'Suspended',
-    } }],
-  });
-  const doc = result.documents[0];
-
-  assert.equal(doc.whitelist_valid, false);
-  assert.equal(doc.retrieval_eligible, false);
-});
-test('external retrieval combines whitelist status with metadata Authority Level and fails closed', async () => {
-  const cases = [
-    ['official', 'official.approved.test', 'External Official'],
-    ['reference', 'reference.approved.test', 'Reference'],
-    ['unverified', 'unverified.test', 'Unverified'],
-    ['suspended', 'suspended.test', 'External Official'],
-    ['missing', 'missing.test', 'External Official'],
-    ['lookalike', 'fakeapproved.test', 'External Official'],
-  ];
-  const records = cases.map(([id, domain, manualAuthority]) => ({ record_id: id, fields: {
-    Title: id, 'Lark URL': `https://${domain}/notice`, Scope: 'External Reference',
-    'Primary Domain': 'Property', 'Document Type': 'Official Notice',
-    ...(manualAuthority ? { 'Authority Level': manualAuthority } : {}),
-  } }));
-  const whitelistRows = [
-    ['official.approved.test', 'Approved'],
-    ['reference.approved.test', 'Approved'],
-    ['unverified.test', 'Approved'],
-    ['suspended.test', 'Suspended'],
-    ['approved.test', 'Approved'],
-  ].map(([domain, status], index) => ({ record_id: `white-${index}`, fields: {
-    'Source Name': domain, Domain: domain, 'Whitelist Status': status,
-  } }));
-
-  const result = await getKnowledgeMetadata({}, {
-    read: async () => records,
-    readWhitelist: async () => whitelistRows,
-  });
-  const byId = Object.fromEntries(result.documents.map(doc => [doc.record_id, doc]));
-
-  assert.equal(byId.official.authority_level, 'External Official');
-  assert.equal(byId.official.retrieval_eligible, true);
-  assert.equal(byId.reference.authority_level, 'Reference');
-  assert.equal(byId.reference.retrieval_eligible, true);
-  assert.equal(byId.unverified.whitelist_valid, true);
-  assert.equal(byId.unverified.authority_level, 'Unverified');
-  assert.equal(byId.unverified.retrieval_eligible, false);
-  assert.equal(byId.suspended.whitelist_valid, false);
-  assert.equal(byId.suspended.retrieval_eligible, false);
-  assert.equal(byId.missing.whitelist_valid, false);
-  assert.equal(byId.missing.retrieval_eligible, false);
-  assert.equal(byId.lookalike.whitelist_check.matched_domain, null);
-  assert.equal(byId.lookalike.retrieval_eligible, false);
 });
 test('pagination failure never returns incomplete records or secrets', async () => {
   // has_more without a next cursor must reject rather than return partial success.
@@ -248,11 +111,6 @@ test('Schema Freeze v1.0 required fields exclude owner, review, and approval-wor
       Title: 'Meeting', 'Lark URL': 'https://example.com/meeting',
       Scope: 'Workspace', 'Primary Domain': 'Operation', 'Document Type': 'Meeting Notes',
     } },
-    { record_id: 'external-invalid-url', fields: {
-      Title: 'External guide', 'Lark URL': 'not a valid URL',
-      Scope: 'External Reference', 'Primary Domain': 'Property', 'Document Type': 'Guide',
-      'Authority Level': 'External Official',
-    } },
   ] });
 
   assert.deepEqual(result.documents[0].missing_fields, []);
@@ -260,7 +118,6 @@ test('Schema Freeze v1.0 required fields exclude owner, review, and approval-wor
   assert.equal(result.documents[0].metadata, undefined);
   assert.equal(result.documents[0].lark_url, undefined);
   assert.deepEqual(result.documents[1].missing_fields, []);
-  assert.deepEqual(result.documents[2].missing_fields, ['source_domain']);
 });
 test('date helper normalizes optional frozen project dates', () => {
   assert.equal(normalizeDate('2024-01-15'), '2024-01-15');

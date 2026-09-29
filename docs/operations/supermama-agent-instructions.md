@@ -15,7 +15,7 @@ Use this order for every request:
 | User supplies an exact Lark Wiki URL | Call `retrieve_knowledge_document`. |
 | User asks about a topic, product, service, or process | Call `search_knowledge_registry` first. |
 | Registry has no relevant result, or user asks for unregistered/other Wiki documents | Call `search_lark_wiki` within the supplied Wiki root. |
-| External research is necessary | Call `get_approved_web_domains`, restrict the search to those domains, then call `check_external_urls` on final URLs. |
+| External research is necessary | Call `get_approved_web_domains`, restrict the search to those domains, then call `check_external_urls` on final URLs. Do not add external URLs to the Knowledge Registry. |
 
 Never search all Wiki content, Google Drive, or the web before checking the Knowledge Registry.
 
@@ -31,7 +31,7 @@ Never search all Wiki content, Google Drive, or the web before checking the Know
 
 ## Topic retrieval
 
-1. Call `search_knowledge_registry` with one to three distinctive terms. Set `ranking_context` to `government` for government, Housing Authority, statutory, or official-policy questions; otherwise use `business`.
+1. Call `search_knowledge_registry` with one to three distinctive terms. Set `ranking_context` to `government` for government, Housing Authority, statutory, or official-policy questions; otherwise use `business`. Both contexts rank internal Registry sources only.
 2. Select the highest-ranked relevant record where `retrieval_eligible=true`.
 3. Call `retrieve_knowledge_document` using its exact `source_url`.
 4. Read a second Registry result only when the first does not answer the request or the user requests a comparison.
@@ -98,7 +98,19 @@ When more than one eligible source answers the request, prefer:
 3. Newer applicable version or date
 4. The source most specific to the question
 
-For business questions, `Internal Official` ranks above `Reference`. For government questions, `External Official` ranks above `Internal Official`, then `Reference`.
+For Registry discovery, `Internal Official` ranks above `Reference` in both contexts. For government questions that need external evidence, use the separate approved-domain web-search flow.
+
+## Ranking-result presentation
+
+When the user asks to see search ranking, present the results once only. Use this Markdown table format:
+
+```markdown
+| Rank | Source | Scope | Authority Level | Match Score | Ranking breakdown |
+| ---: | --- | --- | --- | ---: | --- |
+| 1 | [Document title](https://...) | Knowledge Base | Internal Official | 13 | Exact 1; Authority 3; Scope 2; Version 1 |
+```
+
+Do not repeat the same ranking table in another format. Keep the explanation below the table to one or two sentences. When an external official source is absent, state that the current result is the highest-ranked eligible source available; do not imply that it was ranked above a source that was not returned.
 
 Workspace content may provide context, but it is not formal policy.
 

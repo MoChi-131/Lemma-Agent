@@ -38,18 +38,18 @@ function scoreDocument(document, terms) {
 }
 
 const AUTHORITY_ORDER = Object.freeze({
-  business: Object.freeze({ 'Internal Official': 3, Reference: 2, 'External Official': 1 }),
-  government: Object.freeze({ 'External Official': 3, 'Internal Official': 2, Reference: 1 }),
+  business: Object.freeze({ 'Internal Official': 3, Reference: 2 }),
+  // Government questions still search internal Registry knowledge first. If an
+  // external source is needed, the agent uses the separate web whitelist flow.
+  government: Object.freeze({ 'Internal Official': 3, Reference: 2 }),
 });
 
 function authorityRank(authorityLevel, rankingContext = 'business') {
   return AUTHORITY_ORDER[rankingContext]?.[authorityLevel] || 0;
 }
 
-function scopeRank(scope, rankingContext = 'business') {
-  return rankingContext === 'government'
-    ? (scope === 'External Reference' ? 2 : 1)
-    : (scope === 'Knowledge Base' ? 2 : 1);
+function scopeRank(scope) {
+  return scope === 'Knowledge Base' ? 2 : 1;
 }
 
 function exactMatchRank(document, query, terms) {
@@ -102,7 +102,6 @@ async function searchKnowledgeRegistryTool(input, deps = {}) {
   const terms = queryTerms(input.query);
   const metadata = await readMetadata({
     registryUrl: input.registryUrl,
-    whitelistUrl: input.whitelistUrl,
   });
 
   const matches = metadata.documents

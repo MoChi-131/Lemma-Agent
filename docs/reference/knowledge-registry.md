@@ -1,6 +1,6 @@
 # Knowledge Registry Reader and Retrieval Gate
 
-The default retrieval module reads the Supermama Knowledge Registry from Lark Base without modifying records. It keeps only the completeness, whitelist and eligibility checks needed to select safe retrieval candidates. Detailed dictionary validation is isolated for the Knowledge Base Management Agent.
+The default retrieval module reads internal Supermama knowledge from Lark Base without modifying records. It applies the completeness and eligibility checks needed to select safe retrieval candidates. The separate whitelist governs external web-search results, not Registry records. Detailed dictionary validation is isolated for the Knowledge Base Management Agent.
 
 ## Commands
 
@@ -30,12 +30,12 @@ For compatibility with the live pilot table, a URL in `Source Name` is accepted 
 | `readKnowledgeRegistry(options, deps)` | Authenticate, resolve a Wiki-hosted Base, and read every record page. |
 | `readExternalWhitelist(options, deps)` | Read the independently maintained external-domain whitelist table. |
 | `normalizeDate(value)` | Normalize optional approval and project dates to `YYYY-MM-DD`. |
-| `normalizeRecord(record)` | Map Base fields and calculate completeness, whitelist state and retrieval eligibility. |
+| `normalizeRecord(record)` | Map Base fields and calculate completeness and retrieval eligibility. |
 | `getKnowledgeMetadata(input, deps)` | List normalized records or find exact document URL matches. |
 | `searchKnowledgeRegistryTool(input, deps)` | Rank lightweight metadata matches before any Wiki content search. |
 | `retrieveKnowledgeDocumentTool(input, deps)` | Check an exact Registry record and read its text, native tables, embedded Sheets, embedded images and PDF attachments only when retrieval is eligible. |
 
-Detailed dictionary validation and correction reports belong to the separate Knowledge Base Management Agent. Lemma-Agent consumes only the lightweight completeness, whitelist, and eligibility fields needed for retrieval.
+Detailed dictionary validation and correction reports belong to the separate Knowledge Base Management Agent. Lemma-Agent consumes only the lightweight completeness and eligibility fields needed for Registry retrieval.
 
 Production calls omit `deps`. Tests inject fake token, Wiki, fetch, or registry functions so they run without credentials or network access.
 
@@ -47,7 +47,7 @@ Start the HTTP MCP server in one terminal:
 npm.cmd run mcp:http
 ```
 
-In a second terminal, verify tool discovery, valid and invalid records, exact and missing URL lookups, approved and blocked external sources, report generation, and session reuse:
+In a second terminal, verify tool discovery, valid and invalid records, exact and missing URL lookups, report generation, and session reuse:
 
 ```powershell
 npm.cmd run test:knowledge-mcp:remote
@@ -67,9 +67,8 @@ Every record requires `title`, `scope`, `primary_domain`, and `document_type`.
 | --- | --- |
 | Knowledge Base | `source_url`, `authority_level`, `status` |
 | Workspace | `source_url` |
-| External Reference | `source_url`, derived `source_domain`, `authority_level` |
 
-The Lark Base column remains `Lark URL`, while normalized JSON uses the frozen `source_url` field name. For External Reference records, `source_domain` is extracted automatically from `source_url`, and `whitelist_status` is copied from the matching whitelist-table record. These derived fields do not need columns in the metadata registry table.
+The Lark Base column remains `Lark URL`, while normalized JSON uses the `source_url` field name. It must contain the canonical Lark Wiki URL for the internal document.
 
 For Knowledge Base, `version` is also required for SOP, Pricing, Policy, and Product Spec. `owner_person` is recommended but does not affect completeness. Last Reviewed Date, Approved By, and Approved Date are not v1.0 completeness requirements. `N/A` counts as missing when a field is required.
 
@@ -81,7 +80,7 @@ The reader also maps these optional frozen fields when their Base columns exist:
 
 ### Scope
 
-`Knowledge Base`, `Workspace`, `External Reference`
+`Knowledge Base`, `Workspace`
 
 ### Primary Domain
 
@@ -93,15 +92,13 @@ The reader also maps these optional frozen fields when their Base columns exist:
 | --- | --- |
 | Knowledge Base | SOP, FAQ, Pricing, Policy, Guide, Product Spec, Service Info, Official Notice, Knowledge Article, Reference, Template |
 | Workspace | Meeting Notes, Analysis, Research, Planning, Campaign, Architecture, Design, Development Doc, Test Doc, Project Doc, Report |
-| External Reference | Official Notice, Policy, Guide, Reference |
 
 ### Governance values
 
 | Field | Allowed values |
 | --- | --- |
 | Status, Knowledge Base only | Draft, Review, Approved, Archived |
-| Authority Level | Internal Official, External Official, Reference, Unverified |
-| Whitelist Status, External Reference only | Pending, Approved, Suspended, Rejected |
+| Authority Level | Internal Official, Reference, Unverified |
 
 The user-approved `N/A` extension is accepted for fields that do not apply to the record's Scope. It does not replace a missing required value. The Management Agent verifies the full Scope and document-type dictionary; this reader uses the values only for completeness and eligibility decisions.
 
@@ -126,7 +123,6 @@ Each item in `documents` follows the flat Schema Freeze v1.0 contract. Registry 
   "version": "v1.0",
   "metadata_complete": true,
   "missing_fields": [],
-  "whitelist_valid": null,
   "retrieval_eligible": true
 }
 ```
@@ -138,22 +134,15 @@ Each item in `documents` follows the flat Schema Freeze v1.0 contract. Registry 
 | `skipped_empty_record_count` | Number of completely blank Base rows excluded from output and validation. |
 | `missing_fields: []` | No required-field gaps were found. Optional fields can still be empty. |
 | `metadata_complete: true` | All fields required by Schema Freeze v1.0 are present. |
-| `whitelist_valid` | `true` or `false` for External Reference; `null` for other scopes. |
-| `retrieval_eligible: true` | The complete record passed its Scope-specific Status, Authority, and whitelist gate. |
-| `retrieval_eligible: false` | The record is incomplete or blocked by its Scope, Status, Authority, or whitelist result. |
-| `whitelist_check` | Matching evidence: document domain, matched domain, source name, status, and whitelist record ID. |
+| `retrieval_eligible: true` | The complete Knowledge Base record is Approved and has Internal Official or Reference authority. |
+| `retrieval_eligible: false` | The record is incomplete, is not eligible for its Scope, or fails the Status or Authority gate. |
 
-Retrieval eligibility follows Schema Freeze v1.0:
+Registry retrieval eligibility follows the current policy:
 
 - Knowledge Base: complete, Status Approved, and Authority Internal Official or Reference.
-- External Reference: complete, approved whitelist domain, and Authority External Official or Reference.
 - Workspace: always false for formal Knowledge Retrieval.
 
-`authority_level` is maintained only in the main metadata registry. The whitelist controls domain approval through `Whitelist Status`; it does not duplicate or override document Authority Level.
-
-### Approved whitelist deviation
-
-Schema Freeze v1.0 listed Authority Level in the whitelist sub-schema. The project owner subsequently approved keeping Authority Level only in the main metadata registry to prevent duplicate or conflicting authority values. The whitelist therefore contains source identity and approval status only. This is a documented project decision and should be incorporated into the next schema revision.
+The whitelist is intentionally separate from Registry metadata. It controls whether an externally searched URL may be read or cited; it does not add external sources to the Registry or override internal document Authority Level.
 
 ## MCP tools
 
@@ -167,7 +156,7 @@ Both `mcp:start` using stdio and `mcp:http` register these retrieval tools by de
 
 These tools declare read-only, non-destructive, idempotent annotations. Normal topic retrieval starts with `search_knowledge_registry`; a relevant result then goes to `retrieve_knowledge_document`. `search_lark_wiki` is a fallback only when the Registry has no relevant result or the user explicitly requests other documents.
 
-`search_knowledge_registry` accepts `ranking_context: business | government`. It filters eligibility first, then ranks exact matches, authority, scope, version, and broad metadata matches. Business ranking prefers Internal Official over Reference; government ranking prefers External Official over Internal Official over Reference.
+`search_knowledge_registry` accepts `ranking_context: business | government`. It filters eligibility first, then ranks exact matches, authority, scope, version, and broad metadata matches. Both contexts rank Internal Official above Reference. The government context signals that any necessary external research must use the whitelist flow.
 
 External web search must first call `get_approved_web_domains` and restrict the search to those hosts. Every candidate or redirected final URL must then pass `check_external_urls` before the agent reads, uses or cites it. Both checks fail closed if the whitelist cannot be read.
 
@@ -178,7 +167,6 @@ The retrieval agent performs only the minimum conflict check described in [Agent
 - URL lookup is exact and retains duplicate matches for human review.
 - Completely blank rows are skipped. `N/A`, zero, or any populated cell keeps the row.
 - Optional approval and project dates are normalized to `YYYY-MM-DD` when present.
-- External Reference `source_domain`, `whitelist_status`, and eligibility are derived from the document URL and separate whitelist table.
 - An approved parent domain also approves its real subdomains. For example, `housingauthority.gov.hk` matches `hos.housingauthority.gov.hk`, but not `fakehousingauthority.gov.hk`.
 - Keep whitelist domains as specific as the business requirement allows. Do not approve a broad parent domain when only one service subdomain is required.
 - The validator does not confirm that Approved By is one of the authorized approvers.

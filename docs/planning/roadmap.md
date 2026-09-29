@@ -16,7 +16,6 @@ Add system-managed fields to the main metadata table so editors can see problems
 | `Action Required` | Multiline Text | Plain-language corrections for all failed rules |
 | `Validation Issues` | Multiline Text | Stable machine-readable rule names |
 | `Retrieval Eligible` | Checkbox | Whether the record is currently allowed for retrieval |
-| `Detected Domain` | Text | Domain extracted from an External Reference URL |
 | `Last Validated At` | Date and Time | Time of the latest successful validation sync |
 
 Implement a separate synchronization command rather than adding writes to normal retrieval:
@@ -40,7 +39,7 @@ Acceptance criteria:
 
 - Missing fields, invalid enum values, malformed source URLs, and whitelist failures produce clear actions.
 - Multiple problems on one record are included in one update.
-- External Reference status comes from the whitelist table, not manual metadata input.
+- The whitelist governs web-search URLs only; external URLs are not Registry metadata.
 - A partial read or failed validation never writes updates.
 - Re-running the sync with unchanged records produces no unnecessary writes.
 - Offline tests cover dry-run planning, field mapping, fail-closed behavior, and update failures.
@@ -49,7 +48,7 @@ Acceptance criteria:
 
 **Priority:** Post-MVP enhancement. This provides evidence that every expected document in a selected Lark Wiki subtree has one metadata registry record.
 
-Compare the output of `get_lark_wiki_metadata` with all internal records returned by `get_knowledge_metadata`. Match records by canonical Lark Wiki URL and exclude `External Reference` records.
+Compare the output of `get_lark_wiki_metadata` with all records returned by `get_knowledge_metadata`. Match records by canonical Lark Wiki URL.
 
 The mapping report should classify each item as:
 

@@ -28,11 +28,10 @@ function errorResult(message) {
 function registerKnowledgeTools(server) {
   server.registerTool('get_knowledge_metadata', {
     title: 'Get Knowledge Metadata',
-    description: 'Read registry metadata without document content or Base changes. retrieval_eligible applies the frozen completeness, Scope, Status, Authority and external-whitelist rules. For a user question about document facts, do not answer from metadata: when eligible, call retrieve_knowledge_document with the exact source_url.',
+    description: 'Read internal Registry metadata without document content or Base changes. retrieval_eligible applies the Registry completeness, Scope, Status, and Authority rules. External website approval is checked separately with check_external_urls. For document facts, do not answer from metadata: when eligible, call retrieve_knowledge_document with the exact source_url.',
     inputSchema: {
       url: z.string().url().optional().describe('Optional exact document URL'),
       registryUrl: z.string().url().optional().describe('Optional registry Base URL override'),
-      whitelistUrl: z.string().url().optional().describe('Optional whitelist table URL override'),
     },
     annotations: READ_ONLY,
   }, async input => {
@@ -52,10 +51,9 @@ function registerKnowledgeTools(server) {
       retrieval_eligible_only: z.boolean().default(true)
         .describe('Return only documents currently allowed for retrieval'),
       ranking_context: z.enum(['business', 'government']).default('business')
-        .describe('Use government when official external sources should outrank internal sources'),
+        .describe('Use government for statutory or Housing Authority questions; Registry ranking remains internal and external research uses the web whitelist tools'),
       max_results: z.number().int().min(1).max(50).default(10),
       registryUrl: z.string().url().optional(),
-      whitelistUrl: z.string().url().optional(),
     },
     annotations: READ_ONLY,
   }, async input => {
@@ -72,7 +70,6 @@ function registerKnowledgeTools(server) {
     inputSchema: {
       url: z.string().url().describe('Exact Lark Wiki document URL from the registry or a Wiki search result'),
       registryUrl: z.string().url().optional().describe('Optional registry Base URL override'),
-      whitelistUrl: z.string().url().optional().describe('Optional whitelist table URL override'),
     },
     annotations: READ_ONLY,
   }, async input => {
