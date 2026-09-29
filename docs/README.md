@@ -8,6 +8,7 @@ Use this page as the entry point for current project documentation.
 | --- | --- |
 | [Agent Instructions](operations/supermama-agent-instructions.md) | Production retrieval order, speed rules, source handling and minimum conflict check. |
 | [Knowledge Registry](reference/knowledge-registry.md) | Current metadata schema, whitelist, retrieval gate, tools and test commands. |
+| [Retrieval Ranking](reference/retrieval-ranking.md) | Ranking contexts, score tables, result ordering, and returned ranking evidence. |
 | [Project Structure](architecture/project-structure.md) | Code ownership, directory layout and dependency direction. |
 | [Roadmap](planning/roadmap.md) | Deferred enhancements that are outside the current retrieval version. |
 | [Retrieval Agent Version 2 Plan](planning/v2-plan.md) | Retrieval-owned work, external governance dependencies, and release criteria. |
