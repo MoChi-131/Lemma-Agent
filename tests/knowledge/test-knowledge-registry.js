@@ -2,6 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
   readKnowledgeRegistry,
+  readExternalWhitelist,
   getKnowledgeMetadata,
   normalizeDate,
   normalizeDomain,
@@ -13,7 +14,7 @@ const { registerKnowledgeTools } = require('../../runtime/registrations/register
 test('reads paginated Base through Wiki using only GET requests', async () => {
   // Two pages verify cursor following and that a view cannot hide lookup records.
   let calls = 0;
-  const rows = await readKnowledgeRegistry({}, {
+  const rows = await readExternalWhitelist({ whitelistUrl: 'https://example.larksuite.com/wiki/base123?table=tbl123' }, {
     getWikiNode: async () => ({ obj_type: 'bitable', obj_token: 'base123' }),
     getToken: async () => 'secret',
     fetch: async (url, options) => {
@@ -82,7 +83,7 @@ test('domain matching accepts real subdomains and rejects lookalike domains', ()
 });
 test('pagination failure never returns incomplete records or secrets', async () => {
   // has_more without a next cursor must reject rather than return partial success.
-  await assert.rejects(readKnowledgeRegistry({ registryUrl: 'https://example.larksuite.com/base/base123?table=tbl123' }, {
+  await assert.rejects(readExternalWhitelist({ whitelistUrl: 'https://example.larksuite.com/base/base123?table=tbl123' }, {
     getToken: async () => 'secret', fetch: async () => ({ ok: true, json: async () => ({ code: 0, data: { items: [], has_more: true } }) }),
   }), /Registry read failed/);
 });

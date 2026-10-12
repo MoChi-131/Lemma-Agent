@@ -1,5 +1,12 @@
 # Retrieval Ranking
 
+## Published metadata source
+
+`search_knowledge_registry` and `retrieve_knowledge_document` read **Validated Metadata**, not the working Metadata Registry that colleagues edit. Configure `LARK_VALIDATED_METADATA_URL` and `LARK_VALIDATION_JOURNAL_URL` to the validated table and Journal used by the management agent.
+
+Only a complete, verified publication is available for governed retrieval. During a refresh, use the last published version recorded in Journal. If no verified version is available, report the source as unavailable; do not substitute the working Registry. The web-domain whitelist remains a separate source.
+
+
 `search_knowledge_registry` ranks internal Lark Registry metadata before any document body is read. It is a discovery step: the top eligible result is then passed to `retrieve_knowledge_document`.
 
 The Registry stores Lark knowledge only. External websites are never Registry records and do not affect Registry ranking. If an answer needs web research, use `get_approved_web_domains` before searching and `check_external_urls` before reading or citing a result.

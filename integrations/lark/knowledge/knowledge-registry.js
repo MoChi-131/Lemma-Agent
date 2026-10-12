@@ -1,6 +1,4 @@
-// Production Registry Base for governed knowledge retrieval. An explicit
-// LARK_REGISTRY_URL override still takes precedence for tests or other tenants.
-const DEFAULT_REGISTRY_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tbllHIJ3Mx3zQ1BS&view=vewPu2Lfe7';
+const { readValidatedMetadata } = require('./validated-metadata');
 const DEFAULT_WHITELIST_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblxxLSOp5lg3z9g';
 
 const LARK_HOST_PATTERN = /^[a-z0-9.-]+\.larksuite\.com$/i;
@@ -58,16 +56,27 @@ const larkDateObjectKeys = ['text', 'value', 'date', 'result', 'formula_result',
 
 /**
  * Fetch raw Base records without modifying them or reading document bodies.
- * registryUrl precedence: explicit argument > LARK_REGISTRY_URL > project default.
+ * Read the published table, never the working Metadata Registry.
  * deps supplies optional getToken/getWikiNode/fetch replacements for offline tests.
  *
  * @returns {Promise<Array>} Lark records shaped as { record_id, fields }.
  * @example const records = await readKnowledgeRegistry({ registryUrl: baseUrl });
  */
 async function readKnowledgeRegistry(
-  { registryUrl = process.env.LARK_REGISTRY_URL || DEFAULT_REGISTRY_URL } = {},
+  { registryUrl } = {},
   deps = {},
 ) {
+  const env = deps.env || process.env;
+  if (registryUrl && registryUrl !== env.LARK_VALIDATED_METADATA_URL) {
+    throw new Error('Knowledge retrieval must use the configured Validated Metadata table.');
+  }
+  return readValidatedMetadata({ validatedUrl: env.LARK_VALIDATED_METADATA_URL,
+    journalUrl: env.LARK_VALIDATION_JOURNAL_URL }, {
+    readTable: url => readBaseRegistry({ registryUrl: url }, deps),
+  });
+}
+
+async function readBaseRegistry({ registryUrl }, deps = {}) {
   const { sourceType, appToken, tableId } = parseRegistryUrl(registryUrl);
   const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
 
@@ -117,7 +126,7 @@ async function readExternalWhitelist(
   { whitelistUrl = process.env.LARK_WHITELIST_URL || DEFAULT_WHITELIST_URL } = {},
   deps = {},
 ) {
-  return readKnowledgeRegistry({ registryUrl: whitelistUrl }, deps);
+  return readBaseRegistry({ registryUrl: whitelistUrl }, deps);
 }
 
 function parseRegistryUrl(registryUrl) {

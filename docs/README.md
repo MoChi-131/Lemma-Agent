@@ -6,13 +6,14 @@ Use this page as the entry point for current project documentation.
 
 | Document | Purpose |
 | --- | --- |
-| [Agent Instructions](operations/supermama-agent-instructions.md) | Production retrieval order, speed rules, source handling and minimum conflict check. |
+| [Agent Instructions](operations/supermama-agent-instructions.md) | Simple colleague workflows for retrieval, uploaded drafts, reviewed Wiki saving and source handling. |
 | [ChatGPT Acceptance Prompts](operations/test-prompts.md) | Copy-ready end-to-end prompts with observable pass/fail oracles. |
 | [Knowledge Registry](reference/knowledge-registry.md) | Current metadata schema, whitelist, retrieval gate, tools and test commands. |
 | [Retrieval Ranking](reference/retrieval-ranking.md) | Ranking contexts, score tables, result ordering, and returned ranking evidence. |
 | [Project Structure](architecture/project-structure.md) | Code ownership, directory layout and dependency direction. |
 | [Roadmap](planning/roadmap.md) | Deferred enhancements that are outside the current retrieval version. |
-| [Retrieval Agent Version 2 Plan](planning/v2-plan.md) | Retrieval-owned work, external governance dependencies, and release criteria. |
+| [Approved Document Creation](planning/v2-plan.md) | Drafting, reviewed Wiki placement, approved writing and read-back; metadata handled separately. |
+| [Document Publication Setup](reference/document-publication.md) | Configuration, API contracts, local receipts and failure handling. |
 | [Metadata Acceptance Report](reports/metadata-acceptance-report.md) | Historical evidence from the frozen 13-record Metadata MVP run. |
 
 Use Agent Instructions for runtime behavior and Knowledge Registry for the current technical contract. Acceptance and release documents preserve an earlier test baseline and may contain historical counts or limitations.

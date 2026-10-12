@@ -1,132 +1,37 @@
-# Retrieval Agent Version 2 Plan
+# Lemma：批准後儲存文件
 
-Version 2 improves governed knowledge retrieval while preserving the Version 1 route: search the Registry first, read only eligible documents, use Wiki search only as a fallback, and restrict external web sources to approved domains.
+## 三步流程
 
-## Ownership boundary
+1. **起草**：閱讀同事上傳的直播稿、PDF、筆記或指定來源，按要求產生摘要／完整文件，建議 Wiki 位置並附來源。
+2. **審閱**：同事可修改正文、標題或位置；批准最後版本。
+3. **儲存**：建立 Wiki 文件，讀回確認內容與位置，提供文件連結。
 
-The Retrieval Agent owns:
+## 同事只需兩個 prompts
 
-- Registry-first search and explainable result ranking.
-- Eligibility-gated document retrieval.
-- Text, native table, embedded Sheet, PDF, and linked-file access.
-- Approved-domain external web governance.
-- A minimum `Possible Conflict` check on content already retrieved.
-- MCP security, reliability, and operational diagnostics.
+> 請整理一份驗樓預約指引，給我完整草稿並建議知識庫存放位置，先不要寫入。
 
-The Knowledge Base Management Agent owns:
+或上傳資料後：
 
-- Wiki Inventory-to-Registry mapping and coverage reports.
-- Metadata validation feedback and Base write-back.
-- Registry correction alerts and editor workflows.
-- Full duplicate analysis, conflict classification, and conflict decisions.
+> 請把我上傳的直播稿／PDF 整理成知識庫摘要，保留重要數字、條件及注意事項，標明來源頁碼或段落，建議存放位置。先給我審閱，不要寫入。
 
-Inventory mapping and validation write-back are therefore dependencies for trusted data quality, not implementation phases in this Retrieval Agent release.
+> 我批准這份文件及位置，請儲存並確認，給我文件連結。
 
-## Phase 1: Explainable retrieval ranking
+## 必要規則
 
-Improve metadata ranking without reading document bodies unnecessarily.
+- 未批准不寫入；只儲存最後批准的內容及位置。
+- 先支援新增文件、文字及表格；不覆蓋已有文件。
+- 有同名文件先提醒；寫入結果不明時先檢查，不重複新增。
+- 不修改 metadata；由其他定期流程處理。
+- 技術參數由 Agent 處理，同事只需審閱及批准。
+- 上傳資料是本次整理的來源，不自動視為正式知識；讀不到的頁面或圖片需說明，不猜補。目前只儲存整理後的正文，不上傳原始附件。
+- 同事明確批准指定的修改時，完成修改及準備後直接儲存；沒有新變動不重複要求批准。
 
-Ranking signals, in priority order:
+## 已實作
 
-1. Retrieval eligibility.
-2. Exact title, model, or tag match.
-3. Approved status and authority level.
-4. Scope and document type relevance.
-5. Applicable version or date.
-6. General keyword overlap.
+- `prepare_knowledge_document`：檢查位置、同名文件及正文格式，保留完整審閱稿；不修改 Lark。
+- `publish_approved_document`：批准後新增 Wiki 文件及正文，讀回驗證標題、位置、文字與表格。
+- `inspect_document_publication`：寫入結果不明時只讀檢查，不重複建立。
 
-Acceptance criteria:
+設定 `LARK_DOCUMENT_WIKI_ROOT_URL` 及 `ENABLE_LARK_DOCUMENT_WRITES=true` 後可進行實際驗收；應用程式亦須有目標 Wiki 新增權限及文件讀寫權限。草稿與寫入紀錄保存在本機 `.lemma-drafts/`，不需要新增 Base 表。
 
-- Each result includes a score and short reason breakdown.
-- Exact model and title matches outrank broad tag matches.
-- Ineligible records cannot become retrieval candidates because of a high text score.
-- Workspace records remain ineligible for formal retrieval.
-- Tests cover English and Chinese queries, ties, model numbers, and ineligible matches.
-
-## Phase 2: Retrieval completeness and efficiency
-
-Make one governed retrieval call return the useful content needed for an answer.
-
-Deliverables:
-
-- Stable handling of text, native tables, embedded Sheets, embedded images, and PDF attachments.
-- Clear per-component success and error states.
-- Bounded content size, page count, and processing time.
-- No duplicate read of the same document or attachment in one request.
-- Linked Google Drive content is opened only when relevant and permitted.
-
-Acceptance criteria:
-
-- Partial Sheet or attachment failures do not hide readable document content.
-- A failed component is not retried repeatedly in one request.
-- Large documents are truncated safely and report that truncation.
-- Retrieved content is treated as source data rather than instructions.
-
-## Phase 3: Governed fallback behavior
-
-Make fallback routes predictable and testable.
-
-Deliverables:
-
-- Wiki search runs only when Registry search finds no relevant eligible document or the user requests other documents.
-- External web search obtains approved domains before searching.
-- Final and redirected web URLs pass the whitelist check before use.
-- Failed governance checks stop the affected fallback route.
-
-Acceptance criteria:
-
-- Tests prove that a valid Registry result prevents unnecessary Wiki and web searches.
-- Lookalike, HTTP, Pending, Suspended, and Rejected domains are blocked.
-- A Registry, whitelist, or authorization failure never silently becomes an unrestricted search.
-
-## Phase 4: Operational readiness
-
-Prepare the HTTP MCP service for controlled shared use.
-
-Deliverables:
-
-- Application-level authentication for the HTTP endpoint.
-- Request timeouts and size limits for document, Sheet, and PDF reads.
-- Structured logs without credentials or document bodies.
-- Health and readiness checks for Lark credentials and required scopes.
-- Deployment and credential-rotation documentation.
-
-Acceptance criteria:
-
-- Unauthenticated requests cannot invoke MCP tools.
-- Logs contain request IDs, tool names, duration, and sanitized errors.
-- Permission failures identify the missing capability without exposing secrets.
-- Stdio and HTTP expose the same default tool contract.
-
-## Phase 5: Version 2 acceptance
-
-Run one release acceptance set covering:
-
-- Registry-first discovery and ranking quality.
-- Eligibility-gated retrieval.
-- Text, native table, embedded Sheet, PDF, and linked-file handling.
-- Wiki fallback rules.
-- Approved-domain external web governance.
-- Minimum `Possible Conflict` reporting.
-- MCP discovery, sessions, authentication, and error handling.
-
-Publish:
-
-- `docs/reports/v2-acceptance-report.md`
-- Updated `docs/reference/knowledge-registry.md`
-- Updated `docs/operations/supermama-agent-instructions.md`
-- Release notes and Git tag `v2.0.0`
-
-## External dependencies
-
-Before final Version 2 acceptance, obtain these outputs from the Knowledge Base Management Agent:
-
-- A completed Inventory-to-Registry coverage report without unresolved crawl errors.
-- A documented process for correcting invalid Registry records.
-- A stable Registry and whitelist schema for the acceptance baseline.
-
-The Retrieval Agent may still be developed and tested with fixtures while those governance tasks are in progress.
-
-## Recommended order
-
-Implement ranking first, then retrieval completeness and fallback behavior. Finish authentication and operational controls before shared deployment. Run final acceptance after the Knowledge Base Management Agent supplies the required governance evidence.
+文字、Markdown 標題、清單、引用、程式碼及一般表格已支援。原始 PDF／圖片上傳、覆蓋既有文件不在首版範圍；上傳內容由 ChatGPT 讀取後整理成正文。離線測試不代表已通過實際 Lark 權限及文件呈現驗收，請依 [測試 prompts](../operations/test-prompts.md) 的文件儲存案例驗收。

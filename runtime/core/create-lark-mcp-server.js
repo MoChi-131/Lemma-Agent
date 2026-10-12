@@ -1,5 +1,6 @@
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { registerDocumentTools } = require('../registrations/register-document-tools');
+const { registerDocumentPublicationTools } = require('../registrations/register-document-publication-tools');
 const { registerKnowledgeTools } = require('../registrations/register-knowledge-tools');
 const { registerWikiChildrenTool } = require('../registrations/register-wiki-children-tool');
 const { registerWikiSearchTools } = require('../registrations/register-wiki-search-tools');
@@ -18,6 +19,7 @@ function createLarkMcpServer({
   const server = new McpServer(SERVER_INFO);
 
   registerDocumentTools(server);
+  registerDocumentPublicationTools(server);
   if (includeWikiChildren) registerWikiChildrenTool(server);
   registerWikiTreeTool(server);
   registerWikiSubtreeTool(server);

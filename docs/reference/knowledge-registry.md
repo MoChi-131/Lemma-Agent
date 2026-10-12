@@ -11,7 +11,7 @@ npm.cmd run test:knowledge-registry
 npm.cmd run test:knowledge-mcp:remote
 ```
 
-The live commands use `LARK_APP_ID` and `LARK_APP_SECRET` from `.env`. The project has built-in defaults for the Supermama registry and whitelist tables. `LARK_REGISTRY_URL` and `LARK_WHITELIST_URL` remain optional overrides. Registry access needs `wiki:node:read` and `base:record:retrieve`. Rich document retrieval also needs Docx read access, a Sheet or Drive read scope for embedded Sheets, and `docs:document.media:download` for attachments, images, and whiteboard thumbnails. The app must have access to the referenced documents, images, whiteboards, and files. Do not commit `.env` or print its values.
+The live commands use `LARK_APP_ID` and `LARK_APP_SECRET` from `.env`. Configure `LARK_VALIDATED_METADATA_URL` for the published mirror and `LARK_VALIDATION_JOURNAL_URL` for its publication Journal. The working Registry is never a retrieval fallback. `LARK_WHITELIST_URL` remains an optional override for the separate web-domain whitelist. Registry access needs `wiki:node:read` and `base:record:retrieve`. Rich document retrieval also needs Docx read access, a Sheet or Drive read scope for embedded Sheets, and `docs:document.media:download` for attachments, images, and whiteboard thumbnails. The app must have access to the referenced documents, images, whiteboards, and files. Do not commit `.env` or print its values.
 
 The whitelist table should use these field titles:
 

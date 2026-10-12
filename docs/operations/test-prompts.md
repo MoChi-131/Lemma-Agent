@@ -163,6 +163,63 @@ https://ysgjyjx6z20y.sg.larksuite.com/wiki/NR06wEWBsiMVNnkOclVlKgAAg6e
 - Cites both the Drive resource and referring Lark document when Drive content is used.
 - Does not search the user's entire Drive.
 
+## 11. 上傳資料、審閱及批准後儲存
+
+先設定測試用的 `LARK_DOCUMENT_WIKI_ROOT_URL`；測試 11C 會實際新增文件。使用不含私人資料的 PDF／直播稿，包含標題、頁碼、金額與條件；請用可辨識的全新文件標題。
+
+### 11A. 整理上傳資料，先不寫入
+
+```text
+請把我上傳的直播稿／PDF 整理成知識庫摘要，保留重要數字、條件及注意事項，標明來源頁碼或段落。建議一個現有 Wiki 存放位置並說明理由，給我完整草稿審閱，先不要寫入。
+```
+
+**Oracle**
+
+- 先讀上傳資料，保留原有條件、數字和來源；讀不到的內容明確說明，不猜補。
+- 顯示完整標題、正文、Wiki 路徑及位置理由；使用 `prepare_knowledge_document` 保留審閱稿。
+- 沒有建立 Lark 文件或修改 Base；不要求同事提供 ID／hash。
+
+### 11B. 修改正文及位置
+
+```text
+把標題改為「驗樓預約指引－審閱版」，加上「費用以正式報價為準」。存放位置改用我指定的服務分類頁。先給我最後版本，暫時不要儲存。
+```
+
+**Oracle**
+
+- 使用同事提供的實際分類頁連結重新準備；若位置未知，只集中詢問位置。
+- 顯示最後正文及位置，等待批准；不沿用舊草稿的批准。
+
+### 11C. 批准並儲存
+
+```text
+我批准上面的最後版本及存放位置，請儲存並讀回確認，給我文件連結。
+```
+
+**Oracle**
+
+- 設定允許寫入且已取得批准後，呼叫 `publish_approved_document`。
+- 建立一份新 Wiki 文件；確認標題、父頁、正文及表格一致才報成功。
+- 原始 PDF 沒有被聲稱已上傳；Registry、Validated Metadata、Tags 均沒有變更。
+
+### 11D. 同一操作再次確認
+
+```text
+請再確認剛才文件已正確儲存，不要再建立一份。
+```
+
+**Oracle**
+
+- 使用原 receipt 及 `inspect_document_publication` 唯讀確認；新文件數量不增加。
+- 逾時／失敗只報確認到的狀態，不自動重建、補寫或更新 metadata。
+
+### 11E. 同名文件、停用寫入及不可讀來源
+
+- 用相同標題、相同父頁準備另一份正文：提醒已有同名頁，不覆蓋；改標題後需審閱批准。
+- 停用文件寫入後批准一份新草稿：回報設定未啟用，不建立任何頁面。
+- 上傳無法辨認的掃描頁：明確指出內容缺口，不聲稱已準確整理。
+- 草稿含要保存的圖片／附件：說明目前 writer 只保存正文，不能悄悄略過圖片後聲稱整份文件完整保存。
+
 ## Record results
 
 For every run, record the date, prompt number, pass/fail, response link or transcript, MCP server version, and any connector or Lark permission error. A failed connector call is an infrastructure failure; it does not prove that source content is invalid.
