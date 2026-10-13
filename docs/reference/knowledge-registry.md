@@ -56,7 +56,7 @@ npm.cmd run test:knowledge-mcp:remote
 The command expects the frozen pilot baseline of 13 records. For a later baseline, pass the endpoint and expected count explicitly:
 
 ```powershell
-npm.cmd run test:knowledge-mcp:remote -- "http://localhost:3000/mcp" 15
+npm.cmd run test:knowledge-mcp:remote -- "http://localhost:6688/mcp" 15
 ```
 
 ## Required fields

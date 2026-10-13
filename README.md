@@ -48,6 +48,8 @@ Stdio:
 npm.cmd run mcp:start
 ```
 
-The HTTP health endpoint is `http://localhost:3000/health`; the Streamable HTTP MCP endpoint is `http://localhost:3000/mcp`.
+The default HTTP port is `6688`, overridden by `PORT` in the environment or `.env`. The health endpoint is `http://localhost:6688/health`; the Streamable HTTP MCP endpoint is `http://localhost:6688/mcp`.
+
+After changing the port, restart the server and update the Codespace forwarded port, ChatGPT connection URL, or Tunnel target as applicable. Stdio does not use a port.
 
 The HTTP server remains a development service without application-level authentication. Do not expose it as a production company service without an authentication and deployment review.

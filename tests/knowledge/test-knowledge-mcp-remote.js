@@ -20,7 +20,7 @@ async function callTool(client, name, args = {}) {
 }
 
 async function main() {
-  const [endpoint = 'http://localhost:3000/mcp', expectedCountText = '13'] = process.argv.slice(2);
+  const [endpoint = `http://localhost:${process.env.PORT || 6688}/mcp`, expectedCountText = '13'] = process.argv.slice(2);
   const expectedCount = Number(expectedCountText);
   assert.ok(Number.isInteger(expectedCount) && expectedCount >= 1, 'Expected record count must be a positive integer');
 

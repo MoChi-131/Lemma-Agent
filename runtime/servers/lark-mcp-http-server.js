@@ -13,7 +13,7 @@ const {
 
 const app = express();
 const sessions = new Map();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 6688;
 
 app.use(express.json());
 

@@ -7,6 +7,7 @@ An **oracle** is the observable result that determines whether a test passes. Do
 ## Before testing
 
 1. Start the current MCP server with `npm.cmd run mcp:http`.
+   Default port: `6688`. Check `http://localhost:6688/health`; connect at `/mcp`. If `PORT` overrides the default, use that port in every endpoint. After a change, update the Codespace forwarding and ChatGPT URL or Tunnel target.
 2. Refresh the ChatGPT connector and start a new conversation.
 3. Ensure the Registry Base has only `Knowledge Base` and `Workspace` scope options. Do not add web URLs to it.
 
@@ -176,7 +177,7 @@ https://ysgjyjx6z20y.sg.larksuite.com/wiki/NR06wEWBsiMVNnkOclVlKgAAg6e
 **Oracle**
 
 - 先讀上傳資料，保留原有條件、數字和來源；讀不到的內容明確說明，不猜補。
-- 顯示完整標題、正文、Wiki 路徑及位置理由；使用 `prepare_knowledge_document` 保留審閱稿。
+- 顯示完整標題、正文、實際查到的 Wiki 路徑及位置理由；使用 `prepare_knowledge_document` 保留審閱稿。不能虛構子分類或只展示未核實的文字路徑。
 - 沒有建立 Lark 文件或修改 Base；不要求同事提供 ID／hash。
 
 ### 11B. 修改正文及位置
@@ -187,7 +188,7 @@ https://ysgjyjx6z20y.sg.larksuite.com/wiki/NR06wEWBsiMVNnkOclVlKgAAg6e
 
 **Oracle**
 
-- 使用同事提供的實際分類頁連結重新準備；若位置未知，只集中詢問位置。
+- 使用同事提供的實際分類頁連結重新準備；只有分類名稱時先自行查目錄取得連結，真正無法區分候選才請同事選擇。
 - 顯示最後正文及位置，等待批准；不沿用舊草稿的批准。
 
 ### 11C. 批准並儲存
@@ -219,6 +220,22 @@ https://ysgjyjx6z20y.sg.larksuite.com/wiki/NR06wEWBsiMVNnkOclVlKgAAg6e
 - 停用文件寫入後批准一份新草稿：回報設定未啟用，不建立任何頁面。
 - 上傳無法辨認的掃描頁：明確指出內容缺口，不聲稱已準確整理。
 - 草稿含要保存的圖片／附件：說明目前 writer 只保存正文，不能悄悄略過圖片後聲稱整份文件完整保存。
+
+### 11F. 已批准，但沒有提供父頁連結
+
+在已有完整草稿及文字位置建議的同一對話測試；下列位置必須替換為測試 Wiki 中的真實分類名稱。
+
+```text
+我批准最後一版文章內容及你建議的「居屋 → 啟陽苑」位置。請自行從 Wiki 目錄取得父頁連結，儲存並讀回確認；同一內容及位置不用再問我批准。
+```
+
+**Oracle**
+
+- 若尚無準備稿，用 `prepare_knowledge_document` 省略父頁取得根頁及目錄，再解析實際父頁、準備及儲存；不要求同事自行找 URL。
+- 已有準備稿且位置一致，直接使用原內部參照；不重複準備或重新要求批准。
+- 原位置不存在／候選不唯一時，只展示真實候選及建議，請同事確認位置，不捏造子頁或重問正文批准。
+- 只有可用工具確實缺少或呼叫回傳錯誤時才回報連線／設定阻擋；對話沒有 URL 不算連線失敗。
+- 修復連線後，若內容及位置仍相同，沿用批准繼續；寫入結果不明仍先唯讀確認，不重複建立。
 
 ## Record results
 
