@@ -1,3 +1,4 @@
+console.error(`[${new Date().toISOString()}] Starting Lemma MCP HTTP server`);
 require('dotenv').config({ quiet: true });
 
 const { randomUUID } = require('node:crypto');
@@ -15,6 +16,16 @@ const app = express();
 const sessions = new Map();
 const port = process.env.PORT || 6688;
 
+// Log routing and timing only; never log headers, tokens or document contents.
+app.use((req, res, next) => {
+  const started = Date.now();
+  const path = req.path === '/mcp' || req.path === '/health' ? req.path : 'other';
+  console.error(`[${new Date().toISOString()}] request started ${req.method} ${path}`);
+  res.on('finish', () => {
+    console.error(`[${new Date().toISOString()}] request finished ${req.method} ${path} status=${res.statusCode} duration_ms=${Date.now() - started}`);
+  });
+  next();
+});
 app.use(express.json());
 
 function sendJsonRpcError(res, status, code, message) {
@@ -37,7 +48,10 @@ async function createSession(req, res) {
   let transport;
   transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => randomUUID(),
-    onsessioninitialized: sessionId => sessions.set(sessionId, transport),
+    onsessioninitialized: sessionId => {
+      sessions.set(sessionId, transport);
+      console.error(`MCP session initialized; active_sessions=${sessions.size}`);
+    },
   });
 
   transport.onclose = () => {
@@ -79,7 +93,7 @@ app.post('/mcp', async (req, res) => {
 
     sendJsonRpcError(res, 400, -32000, 'Bad Request: initialization required');
   } catch (error) {
-    console.error('MCP request failed:', error);
+    console.error('MCP request failed; error_type=', error?.name || 'Error');
     if (!res.headersSent) {
       sendJsonRpcError(res, 500, -32603, 'Internal server error');
     }
@@ -104,6 +118,20 @@ app.delete('/mcp', async (req, res) => {
   await transport.handleRequest(req, res);
 });
 
-app.listen(port, () => {
+// Express also forwards JSON parsing errors and rejected GET/DELETE handlers here.
+app.use((error, _req, res, _next) => {
+  const status = error.status >= 400 && error.status < 600 ? error.status : 500;
+  console.error(`HTTP request failed; status=${status} error_type=${error?.name || 'Error'}`);
+  if (!res.headersSent) sendJsonRpcError(res, status, -32603, 'Request failed');
+  else res.end();
+});
+
+const listener = app.listen(port, () => {
   console.log(`Supermama Lark MCP HTTP Server v${SERVER_INFO.version} running on port ${port}`);
+  console.log(`Health: http://localhost:${port}/health`);
+  console.log(`MCP: http://localhost:${port}/mcp`);
+});
+listener.on('error', error => {
+  console.error(`HTTP server failed to listen on port ${port}; code=${error.code || 'UNKNOWN'}`);
+  process.exitCode = 1;
 });
