@@ -5,6 +5,7 @@ Production code is grouped by responsibility and then by feature.
 ```text
 integrations/lark/
   core/         Lark authentication and document APIs
+  official-mcp/ Private official MCP client, HTTP cancellation bridge and worker for Wiki, Base, text and blocks
   documents/    Reviewed drafts, new Wiki publication and read-back verification
   wiki/         Wiki traversal, metadata and subtree logic
   knowledge/    Registry retrieval gate and external-domain governance

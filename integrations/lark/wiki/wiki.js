@@ -1,4 +1,4 @@
-const { getTenantAccessToken } = require("../core/auth");
+const { officialMcp, TOOLS } = require('../official-mcp/client');
 
 function extractWikiToken(url) {
   const match = url.match(/\/wiki\/([^/?#]+)/);
@@ -10,28 +10,12 @@ function extractWikiToken(url) {
   return match[1];
 }
 
-async function getWikiNode(wikiToken, { signal } = {}) {
-  const accessToken = await getTenantAccessToken({ signal });
-
-  const response = await fetch(
-    `https://open.larksuite.com/open-apis/wiki/v2/spaces/get_node?token=${encodeURIComponent(
-      wikiToken
-    )}`,
-    {
-      signal,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok || data.code !== 0) {
-    throw new Error(`Get Wiki node failed: ${JSON.stringify(data)}`);
+async function getWikiNode(wikiToken, { signal } = {}, { mcp = officialMcp } = {}) {
+  const data = await mcp.call(TOOLS.wikiNode, { params: { token: wikiToken } }, { signal });
+  if (!data.node || typeof data.node.obj_token !== 'string' || typeof data.node.obj_type !== 'string') {
+    throw new Error('Official Lark MCP returned an invalid Wiki node.');
   }
-
-  return data.data.node;
+  return data.node;
 }
 
 async function listWikiChildren({
@@ -40,40 +24,24 @@ async function listWikiChildren({
   pageSize = 50,
   pageToken,
   signal,
-}) {
-  const accessToken = await getTenantAccessToken({ signal });
-
-  const params = new URLSearchParams({
-    parent_node_token: parentNodeToken,
-    page_size: String(pageSize),
-  });
-
-  if (pageToken) {
-    params.set("page_token", pageToken);
+}, { mcp = officialMcp } = {}) {
+  const data = await mcp.call(TOOLS.wikiChildren, {
+    path: { space_id: spaceId },
+    params: {
+      parent_node_token: parentNodeToken, page_size: pageSize,
+      ...(pageToken ? { page_token: pageToken } : {}),
+    },
+  }, { signal });
+  if ((data.items !== undefined && !Array.isArray(data.items)) || typeof data.has_more !== 'boolean') {
+    throw new Error('Official Lark MCP returned an invalid Wiki children page.');
   }
-
-  const response = await fetch(
-    `https://open.larksuite.com/open-apis/wiki/v2/spaces/${spaceId}/nodes?${params.toString()}`,
-    {
-      signal,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok || data.code !== 0) {
-    throw new Error(
-      `List Wiki children failed: ${JSON.stringify(data)}`
-    );
+  if (data.has_more && (typeof data.page_token !== 'string' || !data.page_token || data.page_token === pageToken)) {
+    throw new Error('Official Lark MCP returned an invalid Wiki pagination cursor.');
   }
-
   return {
-    items: data.data?.items || [],
-    hasMore: data.data?.has_more || false,
-    pageToken: data.data?.page_token || null,
+    items: data.items || [],
+    hasMore: data.has_more,
+    pageToken: data.page_token || null,
   };
 }
 

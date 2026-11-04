@@ -1,4 +1,5 @@
 const path = require("path");
+const { partialResultInfo } = require('../../runtime/core/result-status');
 
 const {
   Client,
@@ -48,7 +49,7 @@ async function main() {
     const result = await client.callTool({
       name: "read_lark_document",
       arguments: { url },
-    });
+    }, undefined, { timeout: 120000 });
 
     const textBlock = result.content.find(
       (item) => item.type === "text"
@@ -67,6 +68,35 @@ async function main() {
       "Document content length:",
       payload.content.length
     );
+    console.log('Tables:', payload.tables?.length || 0);
+    if (payload.omitted_image_count) {
+      console.log(`Inline image output: ${payload.inline_image_count} included, ${payload.omitted_image_count} omitted by response size limit`);
+    }
+    for (const [index, table] of (payload.tables || []).entries()) {
+      console.log(`  Table ${index + 1}: ${table.row_count} rows x ${table.column_count} columns`);
+    }
+    let failures = 0;
+    for (const [label, resources] of [
+      ['Embedded Sheets', payload.embedded_sheets],
+      ['Images', payload.images],
+      ['Attachments', payload.attachments],
+      ['Whiteboards', payload.whiteboards],
+    ]) {
+      const items = Array.isArray(resources) ? resources : [];
+      const succeeded = items.filter(item => item.success === true).length;
+      const failed = items.filter(item => item.success === false).length;
+      failures += failed;
+      console.log(`${label}: ${items.length} result entries; ${succeeded} succeeded, ${failed} failed`);
+      for (const item of items.filter(item => item.success === false)) {
+        // Print only controlled error categories, never resource contents or raw errors.
+        const code = /^[A-Z_]+$/.test(item.error_code || '') ? item.error_code : 'RESOURCE_READ_FAILED';
+        console.log(`  ${code}`);
+      }
+    }
+    const partial = partialResultInfo(payload);
+    const incomplete = failures || partial.truncated || partial.errors || partial.resource_issues;
+    console.log('Embedded resource check:', incomplete ? 'PARTIAL - review failed or truncated resources' : 'PASS');
+    if (incomplete) process.exitCode = 1;
   } finally {
     await client.close();
   }

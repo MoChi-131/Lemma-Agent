@@ -173,17 +173,15 @@ test("one document timeout is isolated and the next document can succeed", async
   assert.equal(r.errors[0].code, "document_timeout");
 });
 
-test("readDocument passes the cancellation signal to auth and raw-content requests", async t => {
+test("readDocument passes the cancellation signal to the official MCP raw-content request", async () => {
   const signal = new AbortController().signal;
   const paths = [];
-  t.mock.method(global, "fetch", async (input, options) => {
+  const mcp = { call: async (name, args, options) => {
     assert.equal(options.signal, signal);
-    paths.push(new URL(input).pathname);
-    return new Response(JSON.stringify(paths.length === 1
-      ? { code: 0, tenant_access_token: "test" }
-      : { code: 0, data: { content: "body" } }));
-  });
-  assert.equal(await readDocument("adoc", { signal }), "body");
-  assert.ok(paths[0].endsWith("/tenant_access_token/internal"));
-  assert.ok(paths[1].endsWith("/documents/adoc/raw_content"));
+    paths.push(name);
+    assert.equal(args.path.document_id, 'adoc');
+    return { content: 'body' };
+  } };
+  assert.equal(await readDocument("adoc", { signal }, { mcp }), "body");
+  assert.deepEqual(paths, ['docx.v1.document.rawContent']);
 });

@@ -11,6 +11,7 @@ Use this page as the entry point for current project documentation.
 | [Knowledge Registry](reference/knowledge-registry.md) | Current metadata schema, whitelist, retrieval gate, tools and test commands. |
 | [Retrieval Ranking](reference/retrieval-ranking.md) | Ranking contexts, score tables, result ordering, and returned ranking evidence. |
 | [Project Structure](architecture/project-structure.md) | Code ownership, directory layout and dependency direction. |
+| [Official Lark MCP Reader](reference/official-lark-mcp.md) | Private official MCP integration, retained document features, deployment and tests. |
 | [Roadmap](planning/roadmap.md) | Deferred enhancements that are outside the current retrieval version. |
 | [Approved Document Creation](planning/v2-plan.md) | Drafting, reviewed Wiki placement, approved writing and read-back; metadata handled separately. |
 | [Document Publication Setup](reference/document-publication.md) | Configuration, API contracts, local receipts and failure handling. |

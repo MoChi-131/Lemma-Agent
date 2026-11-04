@@ -1,7 +1,8 @@
 const { getTenantAccessToken } = require("./auth");
 const pdfParse = require("pdf-parse");
+const { officialMcp, TOOLS } = require('../official-mcp/client');
+const { logger, activityId } = require('../../../runtime/core/logger');
 
-const DOCX_API = "https://open.larksuite.com/open-apis/docx/v1/documents";
 const BLOCK_PAGE_SIZE = 500;
 const MAX_BLOCK_PAGES = 100;
 const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
@@ -9,24 +10,26 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_EMBEDDED_IMAGES = 20;
 const MAX_EXTRACTED_TEXT_CHARS = 500000;
 const MAX_WHITEBOARD_TEXT_CHARS = 500000;
-const MAX_WHITEBOARD_NODE_IMAGES = 20;
+const WHITEBOARD_IMAGE_BATCH_SIZE = 4;
+const MAX_WHITEBOARD_IMAGE_BYTES = 50 * 1024 * 1024;
+const WHITEBOARD_IMAGE_TIMEOUT_MS = 30000;
 const IMAGE_FILE_PATTERN = /\.(?:png|jpe?g|gif|webp|bmp|tiff?)$/i;
 
-async function readDocument(documentId, { signal } = {}) {
-  const accessToken = await getTenantAccessToken({ signal });
-
-  return readRawContent(documentId, accessToken, { signal });
+async function readDocument(documentId, { signal } = {}, { mcp = officialMcp } = {}) {
+  return readRawContent(documentId, { signal, mcp });
 }
 
-/** Read text and structured tables with one authentication request. */
+/** Read text/blocks through official MCP; retain binary and embedded-resource readers. */
 async function readDocumentData(documentId, { signal } = {}, deps = {}) {
   const getToken = deps.getToken || getTenantAccessToken;
   const fetchImpl = deps.fetch || fetch;
-  const accessToken = await getToken({ signal });
+  const mcp = deps.mcp || officialMcp;
   const [content, blocks] = await Promise.all([
-    readRawContent(documentId, accessToken, { signal, fetchImpl }),
-    readDocumentBlocks(documentId, accessToken, { signal, fetchImpl }),
+    readRawContent(documentId, { signal, mcp }),
+    readDocumentBlocks(documentId, { signal, mcp }),
   ]);
+  const needsToken = blocks.some(block => block.sheet?.token || block.file?.token || block.image?.token || block.block_type === 43);
+  const accessToken = needsToken ? await getToken({ signal }) : undefined;
 
   const [embeddedSheets, attachments, documentImages, whiteboardResults] = await Promise.all([
     readEmbeddedSheets(blocks, accessToken, { signal, fetchImpl }),
@@ -48,44 +51,34 @@ async function readDocumentData(documentId, { signal } = {}, deps = {}) {
   };
 }
 
-async function readRawContent(documentId, accessToken, { signal, fetchImpl = fetch } = {}) {
-  const response = await fetchImpl(
-    `${DOCX_API}/${encodeURIComponent(documentId)}/raw_content`,
-    requestOptions(accessToken, signal),
-  );
-  const data = await response.json();
-
-  assertLarkResponse(response, data, "Read document");
-  if (typeof data.data?.content !== "string") {
+async function readRawContent(documentId, { signal, mcp }) {
+  const data = await mcp.call(TOOLS.rawContent, { path: { document_id: documentId } }, { signal });
+  if (typeof data.content !== "string") {
     throw new Error("Invalid Lark document content response.");
   }
-  return data.data.content;
+  return data.content;
 }
 
-async function readDocumentBlocks(documentId, accessToken, { signal, fetchImpl = fetch } = {}) {
+async function readDocumentBlocks(documentId, { signal, mcp }) {
   const blocks = [];
   let pageToken;
+  const seen = new Set();
 
   for (let page = 0; page < MAX_BLOCK_PAGES; page++) {
-    const params = new URLSearchParams({
-      document_revision_id: "-1",
-      page_size: String(BLOCK_PAGE_SIZE),
-    });
-    if (pageToken) params.set("page_token", pageToken);
-
-    const response = await fetchImpl(
-      `${DOCX_API}/${encodeURIComponent(documentId)}/blocks?${params}`,
-      requestOptions(accessToken, signal),
-    );
-    const data = await response.json();
-    assertLarkResponse(response, data, "Read document blocks");
-
-    blocks.push(...(data.data?.items || []));
-    if (!data.data?.has_more) return blocks;
-    if (!data.data.page_token || data.data.page_token === pageToken) {
+    const data = await mcp.call(TOOLS.blocks, {
+      path: { document_id: documentId },
+      params: { document_revision_id: -1, page_size: BLOCK_PAGE_SIZE, ...(pageToken ? { page_token: pageToken } : {}) },
+    }, { signal });
+    if (!Array.isArray(data.items) || typeof data.has_more !== 'boolean') {
+      throw new Error('Invalid Lark document blocks response.');
+    }
+    blocks.push(...data.items);
+    if (!data.has_more) return blocks;
+    if (typeof data.page_token !== 'string' || !data.page_token || seen.has(data.page_token)) {
       throw new Error("Read document blocks failed: invalid pagination cursor.");
     }
-    pageToken = data.data.page_token;
+    seen.add(data.page_token);
+    pageToken = data.page_token;
   }
 
   throw new Error("Read document blocks failed: page limit exceeded.");
@@ -312,38 +305,64 @@ async function readEmbeddedImages(blocks, accessToken, { signal, fetchImpl }) {
 }
 
 /** Read original whiteboard nodes so text is available without OCR or a thumbnail. */
-async function readEmbeddedWhiteboards(blocks, accessToken, { signal, fetchImpl }) {
-  return Promise.all(findEmbeddedWhiteboards(blocks).map(async whiteboard => {
+async function readEmbeddedWhiteboards(blocks, accessToken, {
+  signal, fetchImpl, imageByteLimit = MAX_WHITEBOARD_IMAGE_BYTES,
+  imageTimeoutMs = WHITEBOARD_IMAGE_TIMEOUT_MS,
+  sourceTimeoutMs = 30000,
+}) {
+  const sourceSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(sourceTimeoutMs)])
+    : AbortSignal.timeout(sourceTimeoutMs);
+  const reads = [];
+  // Collect all source text first. A slow original image must never consume the
+  // deadline for a later board's source nodes/text.
+  for (const whiteboard of findEmbeddedWhiteboards(blocks)) {
     try {
       const response = await fetchImpl(
         `https://open.larksuite.com/open-apis/board/v1/whiteboards/${encodeURIComponent(whiteboard.token)}/nodes`,
-        requestOptions(accessToken, signal),
+        requestOptions(accessToken, sourceSignal),
       );
       const data = await response.json();
       assertLarkResponse(response, data, 'Read whiteboard nodes');
       const nodes = Array.isArray(data.data?.nodes) ? data.data.nodes : [];
-      return {
+      reads.push({ whiteboard, nodes, result: {
         block_id: whiteboard.block_id,
         source_type: 'whiteboard',
         success: true,
         node_count: nodes.length,
         ...summarizeWhiteboardNodes(nodes),
-        images: await readWhiteboardNodeImages(whiteboard, nodes, accessToken, { signal, fetchImpl }),
-      };
+      } });
     } catch (error) {
-      return contentReadFailure(whiteboard.block_id, 'WHITEBOARD_NODES_READ_FAILED', error);
+      reads.push({ result: contentReadFailure(whiteboard.block_id, 'WHITEBOARD_NODES_READ_FAILED', error) });
     }
-  }));
+  }
+  const imageSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(imageTimeoutMs)])
+    : AbortSignal.timeout(imageTimeoutMs);
+  const budget = { remaining: imageByteLimit };
+  // The download budget and four-request concurrency still apply across boards.
+  for (const read of reads) {
+    if (!read.nodes) continue;
+    const images = await readWhiteboardNodeImages(read.whiteboard, read.nodes, accessToken,
+      { signal: imageSignal, fetchImpl, budget });
+    Object.assign(read.result, {
+      images_truncated: images.some(image => image.skipped_count > 0),
+      image_download_count: images.filter(image => image.success).length,
+      images,
+    });
+  }
+  return reads.map(read => read.result);
 }
 
 /** Download original media for image nodes instead of relying on the board preview. */
-async function readWhiteboardNodeImages(whiteboard, nodes, accessToken, { signal, fetchImpl }) {
-  const imageNodes = nodes.filter(node => node.type === 'image' && node.image?.token)
-    .slice(0, MAX_WHITEBOARD_NODE_IMAGES);
+async function readWhiteboardNodeImages(whiteboard, nodes, accessToken, { signal, fetchImpl, budget }) {
+  const imageNodes = nodes.filter(node => node.type === 'image' && node.image?.token);
   const results = [];
+  const read = activityId();
 
-  for (const node of imageNodes) {
+  async function download(node) {
     try {
+      signal.throwIfAborted();
       const response = await fetchImpl(
         `https://open.larksuite.com/open-apis/drive/v1/medias/${encodeURIComponent(node.image.token)}/download`,
         {
@@ -354,11 +373,21 @@ async function readWhiteboardNodeImages(whiteboard, nodes, accessToken, { signal
       if (!response.ok) throw new Error(`Whiteboard image download returned HTTP ${response.status}.`);
       const declaredSize = Number(response.headers.get('content-length'));
       if (declaredSize > MAX_IMAGE_BYTES) throw new Error('Image exceeds the 10 MB extraction limit.');
-      const bytes = Buffer.from(await response.arrayBuffer());
-      if (bytes.length > MAX_IMAGE_BYTES) throw new Error('Image exceeds the 10 MB extraction limit.');
+      const bytes = await readBoundedImageBytes(response, signal);
+      signal.throwIfAborted();
       const mimeType = String(response.headers.get('content-type') || '').split(';', 1)[0].trim().toLowerCase();
       if (!mimeType.startsWith('image/')) throw new Error('Downloaded media is not an image.');
-      results.push({
+      if (bytes.length > budget.remaining) {
+        budget.exhausted = true;
+        return {
+          block_id: whiteboard.block_id, whiteboard_node_id: node.id || null,
+          source_type: 'whiteboard_image_node', success: false,
+          error_code: 'WHITEBOARD_IMAGE_BYTE_LIMIT_REACHED', skipped_count: 1,
+          message: 'Original whiteboard images exceeded the document image byte budget.',
+        };
+      }
+      budget.remaining -= bytes.length;
+      return {
         block_id: whiteboard.block_id,
         whiteboard_node_id: node.id || null,
         name: 'whiteboard-image',
@@ -369,26 +398,63 @@ async function readWhiteboardNodeImages(whiteboard, nodes, accessToken, { signal
         width: finiteNumber(node.width),
         height: finiteNumber(node.height),
         data: bytes.toString('base64'),
-      });
+      };
     } catch (error) {
-      results.push({
+      return {
         ...contentReadFailure(whiteboard.block_id, 'WHITEBOARD_IMAGE_READ_FAILED', error),
         whiteboard_node_id: node.id || null,
         source_type: 'whiteboard_image_node',
-      });
+      };
     }
   }
 
-  if (nodes.filter(node => node.type === 'image' && node.image?.token).length > imageNodes.length) {
-    results.push({
-      block_id: whiteboard.block_id,
-      source_type: 'whiteboard_image_node',
-      success: false,
-      error_code: 'WHITEBOARD_IMAGE_LIMIT_REACHED',
-      message: `Only the first ${MAX_WHITEBOARD_NODE_IMAGES} original whiteboard images were read.`,
+  for (let offset = 0; offset < imageNodes.length; offset += WHITEBOARD_IMAGE_BATCH_SIZE) {
+    if (signal.aborted || budget.exhausted || budget.remaining <= 0) {
+      results.push({
+        block_id: whiteboard.block_id, source_type: 'whiteboard_image_node', success: false,
+        error_code: signal.aborted ? 'WHITEBOARD_IMAGE_TIMEOUT' : 'WHITEBOARD_IMAGE_BYTE_LIMIT_REACHED',
+        skipped_count: imageNodes.length - offset,
+        message: signal.aborted ? 'Whiteboard image reading was cancelled or timed out.'
+          : 'Original whiteboard images reached the document image byte budget.',
+      });
+      break;
+    }
+    const batch = imageNodes.slice(offset, offset + WHITEBOARD_IMAGE_BATCH_SIZE);
+    const fields = { read, batch: Math.floor(offset / WHITEBOARD_IMAGE_BATCH_SIZE) + 1, count: batch.length };
+    logger.info('Whiteboard image batch started', fields);
+    const images = await Promise.all(batch.map(download));
+    results.push(...images);
+    const failed = images.filter(image => !image.success).length;
+    (failed ? logger.warn : logger.success)('Whiteboard image batch finished', {
+      ...fields, succeeded: images.length - failed, failed,
     });
   }
   return results;
+}
+
+async function readBoundedImageBytes(response, signal) {
+  if (!response.body?.getReader) {
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > MAX_IMAGE_BYTES) throw new Error('Image exceeds the 10 MB extraction limit.');
+    return bytes;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      signal.throwIfAborted();
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_IMAGE_BYTES) throw new Error('Image exceeds the 10 MB extraction limit.');
+      chunks.push(Buffer.from(value));
+    }
+    return Buffer.concat(chunks, size);
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }
 
 function summarizeWhiteboardNodes(nodes) {

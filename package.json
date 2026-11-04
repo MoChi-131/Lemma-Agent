@@ -7,10 +7,13 @@
     "doc": "docs"
   },
   "scripts": {
+    "test:base:live": "node tests/mcp/test-base-client.js",
+    "test:official-mcp": "node --test --test-isolation=none tests/test-official-mcp.js tests/test-official-mcp-cancellation.js",
+    "test:logging": "node --test --test-isolation=none tests/test-runtime-logging.js",
     "test:document-publication": "node --test --test-isolation=none tests/documents/test-document-publication.js",
     "test:knowledge-registry": "node --test --test-isolation=none tests/knowledge/test-knowledge-registry.js tests/knowledge/test-validated-metadata.js tests/knowledge/test-retrieve-knowledge-document.js tests/knowledge/test-search-knowledge-registry.js tests/knowledge/test-external-web-governance.js",
     "test:knowledge-mcp:remote": "node tests/knowledge/test-knowledge-mcp-remote.js",
-    "test": "node --test --test-isolation=none tests/documents/test-document-publication.js tests/wiki/test-document-tables.js tests/wiki/test-wiki-tree-tool.js tests/wiki/test-wiki-subtree-tool.js tests/wiki/test-wiki-tree-mcp.js tests/wiki/test-wiki-search.js",
+    "test": "node --test --test-isolation=none tests/test-runtime-logging.js tests/test-official-mcp.js tests/test-official-mcp-cancellation.js tests/documents/test-document-publication.js tests/wiki/test-document-tables.js tests/wiki/test-wiki-tree-tool.js tests/wiki/test-wiki-subtree-tool.js tests/wiki/test-wiki-tree-mcp.js tests/wiki/test-wiki-search.js",
     "test:wiki-subtree": "node --test --test-isolation=none tests/wiki/test-wiki-subtree-tool.js",
     "test:wiki-subtree:mcp": "node --test --test-isolation=none tests/wiki/test-wiki-tree-mcp.js",
     "test:wiki-subtree:remote": "node tests/wiki/test-wiki-subtree-remote.js",
@@ -37,6 +40,7 @@
   },
   "homepage": "https://github.com/Pennylll12/Lemma-Agent#readme",
   "dependencies": {
+    "@larksuiteoapi/lark-mcp": "0.5.1",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

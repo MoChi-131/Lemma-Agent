@@ -1,5 +1,7 @@
-console.error(`[${new Date().toISOString()}] Starting Lemma MCP HTTP server`);
 require('dotenv').config({ quiet: true });
+const { logger, errorSummary, activityId } = require('../core/logger');
+require('../core/official-mcp-shutdown').installOfficialMcpShutdown();
+logger.info('MCP server starting', { transport: 'http' });
 
 const { randomUUID } = require('node:crypto');
 const express = require('express');
@@ -20,9 +22,14 @@ const port = process.env.PORT || 6688;
 app.use((req, res, next) => {
   const started = Date.now();
   const path = req.path === '/mcp' || req.path === '/health' ? req.path : 'other';
-  console.error(`[${new Date().toISOString()}] request started ${req.method} ${path}`);
+  const fields = { request: activityId(), method: req.method, path };
+  logger.info('HTTP request started', fields);
   res.on('finish', () => {
-    console.error(`[${new Date().toISOString()}] request finished ${req.method} ${path} status=${res.statusCode} duration_ms=${Date.now() - started}`);
+    const log = res.statusCode >= 400 ? logger.error : logger.success;
+    log('HTTP request finished', { ...fields, status: res.statusCode, ms: Date.now() - started });
+  });
+  res.on('close', () => {
+    if (!res.writableFinished) logger.warn('HTTP connection closed before completion', { ...fields, ms: Date.now() - started });
   });
   next();
 });
@@ -50,12 +57,13 @@ async function createSession(req, res) {
     sessionIdGenerator: () => randomUUID(),
     onsessioninitialized: sessionId => {
       sessions.set(sessionId, transport);
-      console.error(`MCP session initialized; active_sessions=${sessions.size}`);
+      logger.success('MCP session opened', { active: sessions.size });
     },
   });
 
   transport.onclose = () => {
     if (transport.sessionId) sessions.delete(transport.sessionId);
+    logger.info('MCP session closed', { active: sessions.size });
   };
 
   const server = createLarkMcpServer({ includeWikiChildren: true });
@@ -93,7 +101,7 @@ app.post('/mcp', async (req, res) => {
 
     sendJsonRpcError(res, 400, -32000, 'Bad Request: initialization required');
   } catch (error) {
-    console.error('MCP request failed; error_type=', error?.name || 'Error');
+    logger.error('MCP request failed', { reason: errorSummary(error) });
     if (!res.headersSent) {
       sendJsonRpcError(res, 500, -32603, 'Internal server error');
     }
@@ -121,17 +129,16 @@ app.delete('/mcp', async (req, res) => {
 // Express also forwards JSON parsing errors and rejected GET/DELETE handlers here.
 app.use((error, _req, res, _next) => {
   const status = error.status >= 400 && error.status < 600 ? error.status : 500;
-  console.error(`HTTP request failed; status=${status} error_type=${error?.name || 'Error'}`);
+  logger.error('HTTP request failed', { status, reason: error.type === 'entity.parse.failed' ? 'Invalid JSON request body' : errorSummary(error) });
   if (!res.headersSent) sendJsonRpcError(res, status, -32603, 'Request failed');
   else res.end();
 });
 
 const listener = app.listen(port, () => {
-  console.log(`Supermama Lark MCP HTTP Server v${SERVER_INFO.version} running on port ${port}`);
-  console.log(`Health: http://localhost:${port}/health`);
-  console.log(`MCP: http://localhost:${port}/mcp`);
+  logger.success('MCP server ready', { transport: 'http', version: SERVER_INFO.version, port, health: '/health', mcp: '/mcp' });
 });
 listener.on('error', error => {
-  console.error(`HTTP server failed to listen on port ${port}; code=${error.code || 'UNKNOWN'}`);
+  logger.error('HTTP listen failed', { port, code: error.code || 'UNKNOWN', reason: errorSummary(error) });
   process.exitCode = 1;
 });
+listener.on('close', () => logger.info('HTTP server closed'));

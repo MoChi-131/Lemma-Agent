@@ -12,6 +12,28 @@ const url = "https://example.larksuite.com/wiki/root";
 const preload = path.join(__dirname, "../fixtures/lark-fetch.js");
 const cwd = path.resolve(__dirname, "../..");
 
+async function checkKnowledge(client) {
+  const metadata = await client.callTool({ name: 'get_knowledge_metadata', arguments: {} });
+  assert.ok(!metadata.isError);
+  assert.equal(metadata.structuredContent.record_count, 3);
+  const docs = Object.fromEntries(metadata.structuredContent.documents.map(doc => [doc.record_id, doc]));
+  assert.equal(docs.approved.retrieval_eligible, true);
+  assert.equal(docs.pending.retrieval_eligible, false);
+  assert.equal(docs.workspace.retrieval_eligible, false);
+  const denied = await client.callTool({ name: 'retrieve_knowledge_document',
+    arguments: { url: 'https://example.larksuite.com/wiki/pending' } });
+  assert.equal(denied.isError, true);
+  assert.equal(JSON.parse(denied.content[0].text).error_code, 'RETRIEVAL_NOT_ELIGIBLE');
+  const whitelist = await client.callTool({ name: 'get_approved_web_domains', arguments: {} });
+  assert.ok(!whitelist.isError);
+  assert.equal(whitelist.structuredContent.approved_domain_count, 1);
+  const checked = await client.callTool({ name: 'check_external_urls',
+    arguments: { urls: ['https://example.com/page', 'https://pending.test/page'] } });
+  assert.ok(!checked.isError);
+  assert.equal(checked.structuredContent.approved_count, 1);
+  assert.equal(checked.structuredContent.blocked_count, 1);
+}
+
 async function checkCrawl(client) {
   const r = await client.callTool({ name: "crawl_lark_wiki_tree", arguments: { url } });
   assert.ok(!r.isError);
@@ -57,6 +79,7 @@ test("stdio discovers and calls crawl while preserving read tool", { timeout: 15
     assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(), ["check_external_urls", "crawl_lark_wiki_tree", "get_approved_web_domains", "get_knowledge_metadata", "get_lark_wiki_metadata", "inspect_document_publication", "prepare_knowledge_document", "publish_approved_document", "read_lark_document", "read_lark_wiki_subtree", "retrieve_knowledge_document", "search_knowledge_registry", "search_lark_wiki"]);
     await checkCrawl(client);
     await checkSubtree(client);
+    await checkKnowledge(client);
     const metadata = await client.callTool({ name: "get_lark_wiki_metadata", arguments: { url } });
     assert.equal(metadata.structuredContent.nodes.length, 4);
     assert.equal(metadata.structuredContent.nodes[0].depth, 0);
@@ -81,13 +104,15 @@ test("HTTP session survives discovery, crawl and existing tools; DELETE removes 
     cwd, env: { ...process.env, PORT: String(port) }, stdio: ["ignore", "pipe", "pipe"],
   });
   const base = "http://127.0.0.1:" + port;
+  let activityLog = '';
+  child.stderr.on('data', data => { activityLog += String(data); });
   const client = new Client({ name: "wiki-tree-test", version: "1.0.0" });
   const transport = new StreamableHTTPClientTransport(new URL(base + "/mcp"));
   try {
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(Error("Server startup timed out")), 5000);
-      child.stdout.on("data", data => {
-        if (String(data).includes("running on port")) { clearTimeout(timer); resolve(); }
+      child.stderr.on("data", () => {
+        if (activityLog.includes("MCP server ready")) { clearTimeout(timer); resolve(); }
       });
       child.once("error", error => { clearTimeout(timer); reject(error); });
       child.once("exit", code => { clearTimeout(timer); reject(Error("Server exited: " + code)); });
@@ -112,6 +137,10 @@ test("HTTP session survives discovery, crawl and existing tools; DELETE removes 
       { name: "read_lark_document", arguments: { url } },
       { name: "list_lark_wiki_children", arguments: { space_id: "123", parent_node_token: "root" } },
     ]) assert.ok(!(await client.callTool(request)).isError);
+    const document = await client.callTool({ name: 'read_lark_document', arguments: { url } });
+    assert.equal(document.structuredContent.content, 'Fixture document body');
+    assert.deepEqual(document.structuredContent.tables[0].rows, [['Fixture table cell']]);
+    await checkKnowledge(client);
     assert.equal(transport.sessionId, session);
     const acceptance = await promisify(execFile)(process.execPath,
       ["tests/wiki/test-wiki-tree-remote.js", base + "/mcp", url],
@@ -135,6 +164,17 @@ test("HTTP session survives discovery, crawl and existing tools; DELETE removes 
       body: JSON.stringify({ jsonrpc: "2.0", id: 10, method: "tools/list" }),
     });
     assert.equal(stale.status, 404);
+    // Wait for the local stderr pipe to drain before inspecting activity output.
+    await new Promise(resolve => setTimeout(resolve, 30));
+    assert.match(activityLog, /Tool started/);
+    assert.match(activityLog, /Tool completed/);
+    assert.match(activityLog, /Tool failed/);
+    assert.match(activityLog, /MCP session closed/);
+    assert.match(activityLog, /Official Lark MCP ready/);
+    for (const name of ['wiki.v2.space.getNode', 'wiki.v2.spaceNode.list', 'bitable.v1.appTableRecord.list', 'docx.v1.document.rawContent', 'docx.v1.documentBlock.list']) {
+      assert.ok(activityLog.includes(name));
+    }
+    assert.doesNotMatch(activityLog, /Fixture document body|Fixture table cell|PRIVATE|example\.larksuite\.com/);
   } finally {
     await client.close();
     if (child.exitCode === null) { child.kill(); await once(child, "exit"); }

@@ -1,4 +1,5 @@
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
+const { instrumentTools } = require('./tool-logging');
 const { registerDocumentTools } = require('../registrations/register-document-tools');
 const { registerDocumentPublicationTools } = require('../registrations/register-document-publication-tools');
 const { registerKnowledgeTools } = require('../registrations/register-knowledge-tools');
@@ -17,6 +18,7 @@ function createLarkMcpServer({
   includeWikiChildren = false,
 } = {}) {
   const server = new McpServer(SERVER_INFO);
+  instrumentTools(server);
 
   registerDocumentTools(server);
   registerDocumentPublicationTools(server);

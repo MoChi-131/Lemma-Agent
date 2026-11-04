@@ -36,6 +36,16 @@ Offline tests use fixtures and do not require Lark credentials. Live and remote 
 
 ## Run MCP
 
+Wiki node resolution, child listing, Base records, document text and Blocks use the pinned official Lark MCP
+through a private stdio worker, using the existing application credentials.
+Tables, images, PDF attachments, Sheets, whiteboards and governance stay in Lemma.
+No extra public port is needed. See [official MCP integration](docs/reference/official-lark-mcp.md)
+for deployment, cancellation behavior and validation limits.
+Document responses are limited to 8 MiB for default stdio compatibility; oversized
+inline image collections are explicitly marked partial. Whiteboard text is read
+before image downloads under independent time budgets. Worker HTTP calls honor
+MCP cancellation and have a 30-second deadline.
+
 HTTP:
 
 ```powershell
@@ -53,3 +63,22 @@ The default HTTP port is `6688`, overridden by `PORT` in the environment or `.en
 After changing the port, restart the server and update the Codespace forwarded port, ChatGPT connection URL, or Tunnel target as applicable. Stdio does not use a port.
 
 The HTTP server remains a development service without application-level authentication. Do not expose it as a production company service without an authentication and deployment review.
+
+## Runtime logs
+
+HTTP and stdio write concise activity logs to stderr (stdio stdout stays reserved for MCP).
+Each line includes a UTC timestamp, level, activity, and relevant IDs, status and duration.
+HTTP requests, session open/close, server startup and tool executions are logged. Tool calls
+include start/completion, returned failures, thrown errors and partial-result warnings.
+Nested resource failures or truncated images, attachments and whiteboards produce
+yellow warnings instead of green completion logs. Whiteboard originals download
+in batches of four beyond twenty images, with shared byte and time budgets;
+see the official MCP integration reference for limits and live acceptance evidence.
+Arguments, successful document contents, session tokens and headers are not logged.
+Error summaries redact configured credential values and URLs, omit upstream JSON payloads,
+and are limited to 180 characters; raw stacks and payloads are intentionally omitted.
+
+Colors are green for OK, red for ERROR, yellow for WARN and cyan for INFO. The default
+`LOG_COLOR=auto` enables colors in terminals. Use `LOG_COLOR=always` for PM2/Docker log
+viewers that support ANSI colors, or `LOG_COLOR=never` / `NO_COLOR=1` for plain text.
+Restart the service after changing its environment. Run `npm run test:logging` to check logging.

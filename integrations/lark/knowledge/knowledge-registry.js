@@ -1,4 +1,5 @@
 const { readValidatedMetadata } = require('./validated-metadata');
+const { officialMcp, TOOLS } = require('../official-mcp/client');
 const DEFAULT_WHITELIST_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblxxLSOp5lg3z9g';
 
 const LARK_HOST_PATTERN = /^[a-z0-9.-]+\.larksuite\.com$/i;
@@ -6,7 +7,7 @@ const REGISTRY_PATH_PATTERN = /^\/(wiki|base)\/([a-zA-Z0-9]+)\/?$/;
 const TABLE_ID_PATTERN = /^tbl[a-zA-Z0-9]+$/;
 const BASE_TOKEN_PATTERN = /^[a-zA-Z0-9]+$/;
 const MAX_RECORD_PAGES = 100;
-const RECORD_PAGE_SIZE = '500';
+const RECORD_PAGE_SIZE = 500;
 const REQUEST_TIMEOUT_MS = 60000;
 
 // Exact column labels accepted in the separate web-search whitelist table.
@@ -57,7 +58,7 @@ const larkDateObjectKeys = ['text', 'value', 'date', 'result', 'formula_result',
 /**
  * Fetch raw Base records without modifying them or reading document bodies.
  * Read the published table, never the working Metadata Registry.
- * deps supplies optional getToken/getWikiNode/fetch replacements for offline tests.
+ * deps supplies optional mcp/getWikiNode/signal replacements for offline tests.
  *
  * @returns {Promise<Array>} Lark records shaped as { record_id, fields }.
  * @example const records = await readKnowledgeRegistry({ registryUrl: baseUrl });
@@ -78,16 +79,14 @@ async function readKnowledgeRegistry(
 
 async function readBaseRegistry({ registryUrl }, deps = {}) {
   const { sourceType, appToken, tableId } = parseRegistryUrl(registryUrl);
-  const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const deadline = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const signal = deps.signal ? AbortSignal.any([deps.signal, deadline]) : deadline;
 
   let app = appToken;
-  let stage = 'authentication';
-  let httpStatus;
-  let apiCode;
+  let stage = 'base_records';
 
   try {
-    const token = await (deps.getToken || require('../core/auth').getTenantAccessToken)({ signal });
-
+    signal.throwIfAborted();
     if (sourceType === 'wiki') {
       stage = 'wiki_resolution';
       app = await resolveWikiBaseToken(app, signal, deps);
@@ -97,20 +96,14 @@ async function readBaseRegistry({ registryUrl }, deps = {}) {
     return await fetchAllBaseRecords({
       app,
       tableId,
-      token,
       signal,
       deps,
-      onResponse(response, body) {
-        httpStatus = response.status;
-        apiCode = Number.isInteger(body.code) ? body.code : undefined;
-      },
     });
   } catch (error) {
     throw buildRegistryReadError({
       error,
       stage,
-      httpStatus,
-      apiCode: extractLegacyLarkCode(error, apiCode),
+      apiCode: Number.isInteger(error.larkCode) ? error.larkCode : undefined,
       signal,
     });
   }
@@ -155,7 +148,8 @@ function parseRegistryUrl(registryUrl) {
 }
 
 async function resolveWikiBaseToken(wikiNodeToken, signal, deps) {
-  const node = await (deps.getWikiNode || require('../wiki/wiki').getWikiNode)(wikiNodeToken, { signal });
+  const node = await (deps.getWikiNode || require('../wiki/wiki').getWikiNode)(wikiNodeToken,
+    { signal }, { mcp: deps.mcp || officialMcp });
 
   if (node.obj_type !== 'bitable') {
     throw new Error('Not a Base');
@@ -168,7 +162,7 @@ async function resolveWikiBaseToken(wikiNodeToken, signal, deps) {
   return node.obj_token;
 }
 
-async function fetchAllBaseRecords({ app, tableId, token, signal, deps, onResponse }) {
+async function fetchAllBaseRecords({ app, tableId, signal, deps }) {
   if (!BASE_TOKEN_PATTERN.test(app || '')) {
     throw new Error('Invalid Base token');
   }
@@ -178,14 +172,13 @@ async function fetchAllBaseRecords({ app, tableId, token, signal, deps, onRespon
   let pageToken;
 
   for (let page = 0; page < MAX_RECORD_PAGES; page++) {
+    signal.throwIfAborted();
     const { items, hasMore, nextPageToken } = await fetchBaseRecordPage({
       app,
       tableId,
-      token,
       pageToken,
       signal,
       deps,
-      onResponse,
     });
 
     records.push(...items);
@@ -194,7 +187,7 @@ async function fetchAllBaseRecords({ app, tableId, token, signal, deps, onRespon
       return records;
     }
 
-    if (!nextPageToken || seenPageTokens.has(nextPageToken)) {
+    if (typeof nextPageToken !== 'string' || !nextPageToken || seenPageTokens.has(nextPageToken)) {
       throw new Error('Invalid pagination');
     }
 
@@ -205,45 +198,30 @@ async function fetchAllBaseRecords({ app, tableId, token, signal, deps, onRespon
   throw new Error('Page limit exceeded');
 }
 
-async function fetchBaseRecordPage({ app, tableId, token, pageToken, signal, deps, onResponse }) {
-  const query = new URLSearchParams({ page_size: RECORD_PAGE_SIZE });
-  if (pageToken) query.set('page_token', pageToken);
-
-  const response = await (deps.fetch || fetch)(
-    `https://open.larksuite.com/open-apis/bitable/v1/apps/${app}/tables/${tableId}/records?${query}`,
-    {
-      signal,
-      headers: { Authorization: `Bearer ${token}` },
-    },
-  );
-  const body = await response.json();
-  onResponse(response, body);
-
-  if (!response.ok || body.code !== 0 || !Array.isArray(body.data?.items)) {
-    throw new Error('Read failed');
+async function fetchBaseRecordPage({ app, tableId, pageToken, signal, deps }) {
+  const data = await (deps.mcp || officialMcp).call(TOOLS.baseRecords, {
+    path: { app_token: app, table_id: tableId },
+    params: { page_size: RECORD_PAGE_SIZE, ...(pageToken ? { page_token: pageToken } : {}) },
+  }, { signal });
+  signal.throwIfAborted();
+  if (!Array.isArray(data.items) || typeof data.has_more !== 'boolean' ||
+      data.items.some(item => !item || typeof item.record_id !== 'string' ||
+        !item.fields || typeof item.fields !== 'object' || Array.isArray(item.fields))) {
+    throw new Error('Invalid Base record page');
   }
 
   return {
-    items: body.data.items,
-    hasMore: body.data.has_more === true,
-    nextPageToken: body.data.page_token,
+    items: data.items,
+    hasMore: data.has_more,
+    nextPageToken: data.page_token,
   };
-}
-
-function extractLegacyLarkCode(error, currentCode) {
-  if (currentCode !== undefined) {
-    return currentCode;
-  }
-
-  const legacyCode = /"code"\s*:\s*(-?\d+)/.exec(error.message || '');
-  return legacyCode ? Number(legacyCode[1]) : undefined;
 }
 
 function buildRegistryReadError({ error, stage, httpStatus, apiCode, signal }) {
   const hints = {
     authentication: 'Check LARK_APP_ID and LARK_APP_SECRET in .env.',
     wiki_resolution: 'Check Wiki read permission, access to the Wiki node, and that the URL points to a Base.',
-    base_records: 'Check Base record read permission and access to the specified table.',
+    base_records: 'Check application credentials, Base record read permission and access to the specified table.',
   };
 
   const detail = [

@@ -6,10 +6,16 @@ const {
   findFileAttachments,
   findEmbeddedImages,
   findEmbeddedWhiteboards,
-  readDocumentData,
+  readDocumentData: readDocumentDataImpl,
   summarizeWhiteboardNodes,
+  readEmbeddedWhiteboards,
 } = require('../../integrations/lark/core/documents');
 const { documentResult } = require('../../runtime/core/document-output');
+const { ReadBuffer, serializeMessage } = require('@modelcontextprotocol/sdk/shared/stdio.js');
+const { fixtureDocumentMcp } = require('../fixtures/document-mcp');
+const readDocumentData = (id, options, deps) => readDocumentDataImpl(id, options, {
+  ...deps, mcp: fixtureDocumentMcp(deps.fetch),
+});
 
 const tableBlocks = [
   {
@@ -88,7 +94,7 @@ test('recognizes Lark whiteboard blocks and their board token', () => {
   }]);
 });
 
-test('reads raw content and paginated blocks with one access token', async () => {
+test('reads raw content and paginated blocks through MCP without extra media authentication', async () => {
   let tokenCalls = 0;
   const requestedUrls = [];
   const responses = [
@@ -108,7 +114,7 @@ test('reads raw content and paginated blocks with one access token', async () =>
     },
   });
 
-  assert.equal(tokenCalls, 1);
+  assert.equal(tokenCalls, 0);
   assert.equal(result.content, 'Document body');
   assert.deepEqual(result.tables[0].rows[1], ['Panasonic\n一拖二', '']);
   assert.equal(requestedUrls.length, 3);
@@ -250,6 +256,31 @@ test('emits image bytes as MCP image content without duplicating them in JSON', 
   assert.equal(result.content[0].text.includes('aW1hZ2U='), false);
 });
 
+test('large image collections fit the default stdio buffer and explicitly report omitted inline images', () => {
+  const images = Array.from({ length: 33 }, () => ({ success: true, mime_type: 'image/png',
+    data: Buffer.alloc(256 * 1024).toString('base64') }));
+  const original = { success: true, content: 'body', images };
+  const result = documentResult(original);
+  const encoded = serializeMessage({ jsonrpc: '2.0', id: 1, result });
+  const buffer = new ReadBuffer();
+  assert.doesNotThrow(() => buffer.append(Buffer.from(encoded)));
+  assert.ok(buffer.readMessage());
+  assert.equal(result.structuredContent.images_truncated, true);
+  assert.ok(result.structuredContent.omitted_image_count > 0);
+  assert.equal(result.structuredContent.inline_image_count + result.structuredContent.omitted_image_count, 33);
+  assert.equal(result.content.filter(item => item.type === 'image').length, result.structuredContent.inline_image_count);
+  assert.equal(original.images_truncated, undefined);
+});
+
+test('oversized text metadata returns a bounded explicit error instead of breaking MCP framing', () => {
+  const result = documentResult({ success: true, content: 'x'.repeat(6 * 1024 * 1024) });
+  assert.equal(result.isError, true);
+  assert.equal(result.structuredContent.error_code, 'DOCUMENT_RESPONSE_TOO_LARGE');
+  const buffer = new ReadBuffer();
+  buffer.append(Buffer.from(serializeMessage({ jsonrpc: '2.0', id: 1, result })));
+  assert.ok(buffer.readMessage());
+});
+
 test('reads embedded Sheet rows and extracts PDF attachment text', async () => {
   const blocks = [
     { block_id: 'sheet-block', sheet: { token: 'spreadsheetToken_sheetId' } },
@@ -325,4 +356,129 @@ test('rejects repeated block pagination cursors', async () => {
         : { code: 0, data: { items: [], has_more: true, page_token: 'same' } },
     }),
   }), /invalid pagination cursor/);
+});
+
+const whiteboardBlock = token => ({ block_id: token, block_type: 43, board: { token } });
+const imageNodes = count => Array.from({ length: count }, (_, index) => ({
+  id: `image-${index}`, type: 'image', image: { token: `token-${index}` },
+}));
+
+test('whiteboard images continue beyond twenty in ordered batches of at most four', async () => {
+  let active = 0;
+  let peak = 0;
+  let downloaded = 0;
+  const boards = await readEmbeddedWhiteboards([whiteboardBlock('board')], 'token', {
+    fetchImpl: async url => {
+      if (String(url).endsWith('/nodes')) return jsonResponse({ code: 0, data: { nodes: imageNodes(27) } });
+      peak = Math.max(peak, ++active);
+      await new Promise(resolve => setImmediate(resolve));
+      active--;
+      downloaded++;
+      return binaryResponse(Buffer.from('image'), 'image/png');
+    },
+  });
+  assert.equal(downloaded, 27);
+  assert.equal(peak, 4);
+  assert.deepEqual(boards[0].images.map(image => image.whiteboard_node_id), imageNodes(27).map(node => node.id));
+  assert.equal(boards[0].image_download_count, 27);
+  assert.equal(boards[0].images_truncated, false);
+  assert.ok(boards[0].images.every(image => image.success));
+});
+
+test('one failed whiteboard image does not stop later images or expose upstream errors', async () => {
+  const boards = await readEmbeddedWhiteboards([whiteboardBlock('board')], 'token', {
+    fetchImpl: async url => {
+      if (String(url).endsWith('/nodes')) return jsonResponse({ code: 0, data: { nodes: imageNodes(9) } });
+      if (String(url).includes('/token-2/')) throw Error('PRIVATE upstream image error');
+      return binaryResponse(Buffer.from('image'), 'image/png');
+    },
+  });
+  assert.equal(boards[0].image_download_count, 8);
+  assert.equal(boards[0].images[2].error_code, 'WHITEBOARD_IMAGE_READ_FAILED');
+  assert.equal(boards[0].images[8].success, true);
+  assert.doesNotMatch(JSON.stringify(boards), /PRIVATE/);
+});
+
+test('whiteboard byte budget is shared across boards and reports skipped originals', async () => {
+  let downloads = 0;
+  const boards = await readEmbeddedWhiteboards([whiteboardBlock('one'), whiteboardBlock('two')], 'token', {
+    imageByteLimit: 6,
+    fetchImpl: async url => {
+      if (String(url).endsWith('/nodes')) return jsonResponse({ code: 0, data: { nodes: imageNodes(9) } });
+      downloads++;
+      return binaryResponse(Buffer.from('123'), 'image/png');
+    },
+  });
+  assert.equal(downloads, 4);
+  assert.equal(boards[0].image_download_count, 2);
+  assert.equal(boards[1].image_download_count, 0);
+  assert.ok(boards.every(board => board.images_truncated));
+  const successes = boards.flatMap(board => board.images).filter(image => image.success);
+  assert.equal(successes.reduce((sum, image) => sum + image.byte_size, 0), 6);
+  const skipped = boards.flatMap(board => board.images).reduce((sum, image) => sum + (image.skipped_count || 0), 0);
+  assert.equal(skipped, 16);
+});
+
+test('whiteboard cancellation stops starting later batches and marks remaining nodes', async () => {
+  const controller = new AbortController();
+  let downloads = 0;
+  const boards = await readEmbeddedWhiteboards([whiteboardBlock('board')], 'token', {
+    signal: controller.signal,
+    fetchImpl: async url => {
+      if (String(url).endsWith('/nodes')) return jsonResponse({ code: 0, data: { nodes: imageNodes(9) } });
+      downloads++;
+      await new Promise(resolve => setImmediate(resolve));
+      controller.abort();
+      return binaryResponse(Buffer.from('image'), 'image/png');
+    },
+  });
+  assert.equal(downloads, 4);
+  assert.equal(boards[0].image_download_count, 0);
+  assert.equal(boards[0].images.at(-1).error_code, 'WHITEBOARD_IMAGE_TIMEOUT');
+  assert.equal(boards[0].images.at(-1).skipped_count, 5);
+});
+
+test('oversized streamed whiteboard images are cancelled before accumulating an unbounded body', async () => {
+  let cancelled = false;
+  const boards = await readEmbeddedWhiteboards([whiteboardBlock('board')], 'token', {
+    fetchImpl: async url => {
+      if (String(url).endsWith('/nodes')) return jsonResponse({ code: 0, data: { nodes: imageNodes(1) } });
+      return new Response(new ReadableStream({
+        pull(controller) { controller.enqueue(new Uint8Array(6 * 1024 * 1024)); },
+        cancel() { cancelled = true; },
+      }), { headers: { 'Content-Type': 'image/png' } });
+    },
+  });
+  assert.equal(cancelled, true);
+  assert.equal(boards[0].images[0].success, false);
+  assert.match(boards[0].images[0].message, /10 MB/);
+});
+
+test('a timed-out first-board image preserves later-board text and flags only unfinished images', async () => {
+  const sourceOrder = [];
+  const keepAlive = setTimeout(() => {}, 1000);
+  try {
+    const boards = await readEmbeddedWhiteboards([whiteboardBlock('one'), whiteboardBlock('two')], 'token', {
+      imageTimeoutMs: 20,
+      fetchImpl: async (url, options) => {
+        options.signal.throwIfAborted();
+        if (String(url).endsWith('/nodes')) {
+          sourceOrder.push(String(url).includes('/one/') ? 'one' : 'two');
+          const nodes = String(url).includes('/one/') ? imageNodes(1) : [
+            { type: 'shape', text: { text: 'Second board source text' } }, ...imageNodes(1),
+          ];
+          return jsonResponse({ code: 0, data: { nodes } });
+        }
+        assert.deepEqual(sourceOrder, ['one', 'two']);
+        return new Promise((_resolve, reject) => options.signal.addEventListener('abort',
+          () => reject(options.signal.reason), { once: true }));
+      },
+    });
+    assert.ok(boards.every(board => board.success));
+    assert.equal(boards[1].text, 'Second board source text');
+    assert.equal(boards[1].images[0].error_code, 'WHITEBOARD_IMAGE_TIMEOUT');
+    assert.equal(boards[1].images[0].skipped_count, 1);
+    assert.equal(boards[1].images_truncated, true);
+    assert.equal(boards[0].images[0].success, false);
+  } finally { clearTimeout(keepAlive); }
 });

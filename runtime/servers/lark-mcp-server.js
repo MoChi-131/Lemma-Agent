@@ -1,18 +1,21 @@
 const {
   StdioServerTransport,
 } = require('@modelcontextprotocol/sdk/server/stdio.js');
+const { logger, errorSummary } = require('../core/logger');
+require('../core/official-mcp-shutdown').installOfficialMcpShutdown({ stdio: true });
 const {
   createLarkMcpServer,
   SERVER_INFO,
 } = require('../core/create-lark-mcp-server');
 
 async function main() {
+  logger.info('MCP server starting', { transport: 'stdio', version: SERVER_INFO.version });
   const server = createLarkMcpServer();
   await server.connect(new StdioServerTransport());
-  console.error(`Supermama Lark MCP Server v${SERVER_INFO.version} started`);
+  logger.success('MCP server ready', { transport: 'stdio', version: SERVER_INFO.version });
 }
 
 main().catch(error => {
-  console.error('MCP Server failed:', error);
+  logger.error('MCP server failed', { reason: errorSummary(error) });
   process.exitCode = 1;
 });
