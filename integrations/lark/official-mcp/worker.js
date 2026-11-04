@@ -4,7 +4,11 @@ const { TOOLS } = require('./constants');
 
 // Keep the official package's state inside the ignored project logs directory.
 const { ENV_PATHS } = require('@larksuiteoapi/lark-mcp/dist/utils/constants');
+const userOAuth = process.env.LEMMA_LARK_USER_OAUTH === 'true';
 for (const key of Object.keys(ENV_PATHS)) {
+  // Local user OAuth tokens are encrypted in the official package's default
+  // data directory. Keep that directory only for explicit local test mode.
+  if (userOAuth && key === 'data') continue;
   ENV_PATHS[key] = path.resolve(__dirname, '../../..', 'logs', 'official-mcp', key);
 }
 // The parent emits concise activity/error summaries. Do not write raw upstream errors.
@@ -18,7 +22,8 @@ require('./http-lifecycle').installHttpLifecycle({
 
 const cli = require.resolve('@larksuiteoapi/lark-mcp/dist/cli.js');
 process.argv = [process.execPath, cli, 'mcp', '--mode', 'stdio', '--domain',
-  'https://open.larksuite.com', '--token-mode', 'tenant_access_token',
+  'https://open.larksuite.com', '--token-mode', userOAuth ? 'user_access_token' : 'tenant_access_token',
+  ...(userOAuth ? ['--oauth'] : []),
   '--tool-name-case', 'dot', '--tools', Object.values(TOOLS).join(',')];
 require(cli);
 process.stdin.on('end', () => process.exit(0));

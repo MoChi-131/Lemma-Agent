@@ -76,7 +76,7 @@ test("stdio discovers and calls crawl while preserving read tool", { timeout: 15
   });
   try {
     await client.connect(transport);
-    assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(), ["check_external_urls", "crawl_lark_wiki_tree", "get_approved_web_domains", "get_knowledge_metadata", "get_lark_wiki_metadata", "inspect_document_publication", "prepare_knowledge_document", "publish_approved_document", "read_lark_document", "read_lark_wiki_subtree", "retrieve_knowledge_document", "search_knowledge_registry", "search_lark_wiki"]);
+    assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(), ["check_external_urls", "crawl_lark_wiki_tree", "get_approved_web_domains", "get_knowledge_metadata", "get_lark_wiki_metadata", "inspect_document_publication", "inspect_lark_file_access", "publish_approved_document", "read_lark_document", "read_lark_wiki_subtree", "retrieve_knowledge_document", "search_knowledge_registry", "search_lark_wiki"]);
     await checkCrawl(client);
     await checkSubtree(client);
     await checkKnowledge(client);
@@ -121,7 +121,7 @@ test("HTTP session survives discovery, crawl and existing tools; DELETE removes 
     const session = transport.sessionId;
     assert.ok(session);
     assert.deepEqual((await client.listTools()).tools.map(t => t.name).sort(),
-      ["check_external_urls", "crawl_lark_wiki_tree", "get_approved_web_domains", "get_knowledge_metadata", "get_lark_wiki_metadata", "inspect_document_publication", "list_lark_wiki_children", "prepare_knowledge_document", "publish_approved_document", "read_lark_document", "read_lark_wiki_subtree", "retrieve_knowledge_document", "search_knowledge_registry", "search_lark_wiki"]);
+      ["check_external_urls", "crawl_lark_wiki_tree", "get_approved_web_domains", "get_lark_wiki_metadata", "get_knowledge_metadata", "inspect_document_publication", "inspect_lark_file_access", "list_lark_wiki_children", "publish_approved_document", "read_lark_document", "read_lark_wiki_subtree", "retrieve_knowledge_document", "search_knowledge_registry", "search_lark_wiki"].sort());
     await checkCrawl(client);
     await checkSubtree(client);
     const metadata = await client.callTool({ name: "get_lark_wiki_metadata", arguments: { url } });
@@ -171,6 +171,8 @@ test("HTTP session survives discovery, crawl and existing tools; DELETE removes 
     assert.match(activityLog, /Tool failed/);
     assert.match(activityLog, /MCP session closed/);
     assert.match(activityLog, /Official Lark MCP ready/);
+    // This flow does not contain an embedded whiteboard, so it only invokes the
+    // five read tools needed by this document/tree scenario.
     for (const name of ['wiki.v2.space.getNode', 'wiki.v2.spaceNode.list', 'bitable.v1.appTableRecord.list', 'docx.v1.document.rawContent', 'docx.v1.documentBlock.list']) {
       assert.ok(activityLog.includes(name));
     }

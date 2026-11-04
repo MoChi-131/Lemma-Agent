@@ -35,7 +35,7 @@ async function readDocumentData(documentId, { signal } = {}, deps = {}) {
     readEmbeddedSheets(blocks, accessToken, { signal, fetchImpl }),
     readFileAttachments(blocks, accessToken, { signal, fetchImpl }, deps),
     readEmbeddedImages(blocks, accessToken, { signal, fetchImpl }),
-    readEmbeddedWhiteboards(blocks, accessToken, { signal, fetchImpl }),
+    readEmbeddedWhiteboards(blocks, accessToken, { signal, fetchImpl, mcp }),
   ]);
 
   const whiteboardImages = whiteboardResults.flatMap(({ images = [] }) => images);
@@ -309,6 +309,7 @@ async function readEmbeddedWhiteboards(blocks, accessToken, {
   signal, fetchImpl, imageByteLimit = MAX_WHITEBOARD_IMAGE_BYTES,
   imageTimeoutMs = WHITEBOARD_IMAGE_TIMEOUT_MS,
   sourceTimeoutMs = 30000,
+  mcp = officialMcp,
 }) {
   const sourceSignal = signal
     ? AbortSignal.any([signal, AbortSignal.timeout(sourceTimeoutMs)])
@@ -318,13 +319,13 @@ async function readEmbeddedWhiteboards(blocks, accessToken, {
   // deadline for a later board's source nodes/text.
   for (const whiteboard of findEmbeddedWhiteboards(blocks)) {
     try {
-      const response = await fetchImpl(
-        `https://open.larksuite.com/open-apis/board/v1/whiteboards/${encodeURIComponent(whiteboard.token)}/nodes`,
-        requestOptions(accessToken, sourceSignal),
-      );
-      const data = await response.json();
-      assertLarkResponse(response, data, 'Read whiteboard nodes');
-      const nodes = Array.isArray(data.data?.nodes) ? data.data.nodes : [];
+      // Keep board source reads inside the approved official-MCP allowlist.
+      // Lemma still owns binary image downloads and their output/budget limits.
+      const data = await mcp.call(TOOLS.whiteboardNodes, {
+        path: { whiteboard_id: whiteboard.token },
+      }, { signal: sourceSignal });
+      if (!Array.isArray(data.nodes)) throw new Error('Invalid Lark whiteboard nodes response.');
+      const nodes = data.nodes;
       reads.push({ whiteboard, nodes, result: {
         block_id: whiteboard.block_id,
         source_type: 'whiteboard',
@@ -583,6 +584,7 @@ function contentReadFailure(blockId, errorCode, error) {
 module.exports = {
   readDocument,
   readDocumentData,
+  readDocumentBlocks,
   extractTables,
   findEmbeddedSheets,
   findFileAttachments,

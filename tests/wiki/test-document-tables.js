@@ -8,13 +8,16 @@ const {
   findEmbeddedWhiteboards,
   readDocumentData: readDocumentDataImpl,
   summarizeWhiteboardNodes,
-  readEmbeddedWhiteboards,
+  readEmbeddedWhiteboards: readEmbeddedWhiteboardsImpl,
 } = require('../../integrations/lark/core/documents');
 const { documentResult } = require('../../runtime/core/document-output');
 const { ReadBuffer, serializeMessage } = require('@modelcontextprotocol/sdk/shared/stdio.js');
 const { fixtureDocumentMcp } = require('../fixtures/document-mcp');
 const readDocumentData = (id, options, deps) => readDocumentDataImpl(id, options, {
   ...deps, mcp: fixtureDocumentMcp(deps.fetch),
+});
+const readEmbeddedWhiteboards = (blocks, token, options) => readEmbeddedWhiteboardsImpl(blocks, token, {
+  ...options, mcp: fixtureDocumentMcp(options.fetchImpl),
 });
 
 const tableBlocks = [
@@ -367,9 +370,13 @@ test('whiteboard images continue beyond twenty in ordered batches of at most fou
   let active = 0;
   let peak = 0;
   let downloaded = 0;
+  let nodeReads = 0;
   const boards = await readEmbeddedWhiteboards([whiteboardBlock('board')], 'token', {
     fetchImpl: async url => {
-      if (String(url).endsWith('/nodes')) return jsonResponse({ code: 0, data: { nodes: imageNodes(27) } });
+      if (String(url).endsWith('/nodes')) {
+        nodeReads++;
+        return jsonResponse({ code: 0, data: { nodes: imageNodes(27) } });
+      }
       peak = Math.max(peak, ++active);
       await new Promise(resolve => setImmediate(resolve));
       active--;
@@ -378,6 +385,7 @@ test('whiteboard images continue beyond twenty in ordered batches of at most fou
     },
   });
   assert.equal(downloaded, 27);
+  assert.equal(nodeReads, 1);
   assert.equal(peak, 4);
   assert.deepEqual(boards[0].images.map(image => image.whiteboard_node_id), imageNodes(27).map(node => node.id));
   assert.equal(boards[0].image_download_count, 27);

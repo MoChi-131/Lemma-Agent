@@ -76,7 +76,8 @@ function createOfficialMcpClient({
         // No shell, credentials in argv, inherited NODE_OPTIONS or arbitrary upstream URL.
         // The CLI dotenv loader runs in its package directory, away from Lemma's .env.
         cwd: path.dirname(require.resolve('@larksuiteoapi/lark-mcp/package.json')),
-        env: { APP_ID: appId, APP_SECRET: appSecret },
+        env: { APP_ID: appId, APP_SECRET: appSecret,
+          ...(env.LEMMA_LARK_USER_OAUTH === 'true' ? { LEMMA_LARK_USER_OAUTH: 'true' } : {}) },
         stderr: 'pipe',
       });
       // Drain raw package diagnostics without forwarding payloads or stacks to logs.
@@ -130,7 +131,12 @@ function createOfficialMcpClient({
       return data;
     } catch (error) {
       const reason = requestSignal.aborted ? 'Read cancelled or timed out' : 'Read failed; check Lark access or MCP availability';
-      log.error('Official Lark read failed', { ...fields, ms: Date.now() - started, reason });
+      log.error('Official Lark read failed', {
+        ...fields,
+        ms: Date.now() - started,
+        reason,
+        ...(Number.isInteger(error?.larkCode) ? { lark_code: error.larkCode } : {}),
+      });
       if (requestSignal.aborted) throw requestSignal.reason;
       if (error?.code === 'LARK_MCP_FAILED') throw error;
       throw failure(reason);

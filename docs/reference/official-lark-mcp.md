@@ -1,7 +1,7 @@
 # Official Lark MCP document reader
 
 Lemma uses the pinned `@larksuiteoapi/lark-mcp@0.5.1` package as a private stdio
-child process for five read operations:
+child process for six read operations:
 
 | Lemma operation | Official tool |
 | --- | --- |
@@ -10,9 +10,10 @@ child process for five read operations:
 | Read Base records (mirror, Journal and whitelist) | `bitable.v1.appTableRecord.list` |
 | Read document text (including subtree/search body reads) | `docx.v1.document.rawContent` |
 | Read all document block pages | `docx.v1.documentBlock.list` |
+| Read embedded whiteboard source nodes | `board.v1.whiteboardNode.list` |
 
 The package is started lazily on the first read and shared across concurrent calls
-and HTTP sessions in one Lemma process. Startup verifies that exactly these five
+and HTTP sessions in one Lemma process. Startup verifies that exactly these six
 tools are available. It does not add official tools to Lemma's public tool list.
 
 ## Configuration and deployment
@@ -58,7 +59,8 @@ release. Do not apply a forced audit downgrade without checking compatibility.
   unreadable frame. Inline omission does not provide a continuation token; use
   smaller documents when a full image response is required.
 - Registry publication checks, retrieval eligibility, ranking, external-domain
-  governance and approved-document publication remain in Lemma.
+  governance and approved-document writes remain in Lemma. After a write,
+  Wiki-node and Docx-block read-back verification uses the official MCP.
 - Native table interpretation, embedded Sheet reads, image downloads, PDF text
   extraction and whiteboard source/image reads remain in the existing readers.
 - A direct media token is obtained only when embedded resources need it.
