@@ -5,6 +5,10 @@ const { getWikiNode } = require('../wiki/wiki');
 const { readDocumentBlocks } = require('../core/documents');
 const { officialMcp } = require('../official-mcp/client');
 
+const MAX_TITLE_LENGTH = 200;
+const MAX_MARKDOWN_BYTES = 100000;
+
+/** Normalize a Wiki URL so comparisons ignore query strings and fragments. */
 function wikiUrl(url) {
   const { origin, token } = validateCrawlInput({ url });
   return { origin, token, url: `${origin}/wiki/${token}` };
@@ -22,6 +26,8 @@ async function resolveParent(api, rootUrl, parentUrl) {
   const root = wikiUrl(rootUrl);
   const parent = wikiUrl(parentUrl);
   if (parent.origin !== root.origin) throw new Error('Location must belong to the configured Wiki tenant.');
+  // Verify ancestry node-by-node: a URL inside the same tenant is not enough to
+  // authorize a write outside the configured root subtree.
   const rootNode = validateNode(await api.getNode(root.token), root.token);
   const seen = new Set();
   let token = parent.token;
@@ -47,6 +53,15 @@ function createPublicationReadApi({ mcp = officialMcp } = {}) {
   };
 }
 
+function validatePublicationInput({ title, markdown, parent_url, approval_confirmed }) {
+  if (approval_confirmed !== true) throw new Error('Set approval_confirmed=true to create the document.');
+  if (!title?.trim() || title.trim().length > MAX_TITLE_LENGTH || /[\r\n]/.test(title) ||
+      typeof markdown !== 'string' || !markdown.trim() || Buffer.byteLength(markdown, 'utf8') > MAX_MARKDOWN_BYTES || !parent_url) {
+    throw new Error('Supply title, Markdown body and an existing Wiki parent URL.');
+  }
+  return title.trim();
+}
+
 function createDocumentPublisher({ env = process.env, apiFactory = createOfficialPublicationApi,
   readApiFactory = () => createPublicationReadApi() } = {}) {
   function rootUrl() {
@@ -56,13 +71,8 @@ function createDocumentPublisher({ env = process.env, apiFactory = createOfficia
 
   return {
     async publishSimple({ title, markdown, parent_url, approval_confirmed }) {
-      if (approval_confirmed !== true) throw new Error('Set approval_confirmed=true to create the document.');
       if (env.ENABLE_LARK_DOCUMENT_WRITES !== 'true') throw new Error('Document writing is disabled; set ENABLE_LARK_DOCUMENT_WRITES=true.');
-      if (!title?.trim() || title.trim().length > 200 || /[\r\n]/.test(title) || typeof markdown !== 'string' ||
-          !markdown.trim() || Buffer.byteLength(markdown, 'utf8') > 100000 || !parent_url) {
-        throw new Error('Supply title, Markdown body and an existing Wiki parent URL.');
-      }
-      title = title.trim();
+      title = validatePublicationInput({ title, markdown, parent_url, approval_confirmed });
       const api = apiFactory();
       const parent = await resolveParent(api, rootUrl(), parent_url);
       const children = await api.listChildren(parent.node);
@@ -75,12 +85,16 @@ function createDocumentPublisher({ env = process.env, apiFactory = createOfficia
           node.space_id !== parent.node.space_id || node.title !== title) {
         throw new Error('Created Wiki node could not be verified.');
       }
+      // Writing blocks is irreversible through this tool, so always prove the
+      // returned node identity before sending the content request.
       await api.insertBlocks(node.obj_token, content.converted);
       const readApi = readApiFactory();
       const confirmed = validateNode(await readApi.getNode(node.node_token), node.node_token);
       if (confirmed.title !== title || confirmed.parent_node_token !== parent.node.node_token || confirmed.obj_token !== node.obj_token) {
         throw new Error('Read-back title, location or document identity differs from the created document.');
       }
+      // Read-back makes a successful response insufficient on its own: Lark must
+      // contain the requested title, parent, and converted content.
       verifyContent(await readApi.readBlocks(node.obj_token), node.obj_token, content.expected);
       return { success: true, state: 'verified', title, document_url: `${new URL(parent.url).origin}/wiki/${node.node_token}`,
         verification: { complete: true, title_matches: true, parent_matches: true, content_matches: true } };

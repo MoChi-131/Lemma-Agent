@@ -1,6 +1,6 @@
 # Wiki document publication
 
-Lemma-Agent publishes through the pinned official Lark MCP only. There is no local draft store, receipt, replay path, or direct Lark REST publication client.
+Lemma-Agent publishes through the pinned official Lark MCP only.
 
 ## Configuration
 

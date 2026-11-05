@@ -1,37 +1,9 @@
-# Lemma：批准後儲存文件
+# Version 2 plan
 
-## 三步流程
+Delivered:
 
-1. **起草**：閱讀同事上傳的直播稿、PDF、筆記或指定來源，按要求產生摘要／完整文件，建議 Wiki 位置並附來源。
-2. **審閱**：同事可修改正文、標題或位置；批准最後版本。
-3. **儲存**：建立 Wiki 文件，讀回確認內容與位置，提供文件連結。
+- Official Lark MCP handles Wiki, Docx, Base, whiteboard, Drive inspection, and Wiki writes.
+- `publish_approved_document` creates and verifies a new Wiki document in one call.
+- Publication uses the official Lark MCP only.
 
-## 同事只需兩個 prompts
-
-> 請整理一份驗樓預約指引，給我完整草稿並建議知識庫存放位置，先不要寫入。
-
-或上傳資料後：
-
-> 請把我上傳的直播稿／PDF 整理成知識庫摘要，保留重要數字、條件及注意事項，標明來源頁碼或段落，建議存放位置。先給我審閱，不要寫入。
-
-> 我批准這份文件及位置，請儲存並確認，給我文件連結。
-
-## 必要規則
-
-- 未批准不寫入；只儲存最後批准的內容及位置。
-- 先支援新增文件、文字及表格；不覆蓋已有文件。
-- 有同名文件先提醒；寫入結果不明時先檢查，不重複新增。
-- 不修改 metadata；由其他定期流程處理。
-- 技術參數由 Agent 處理，同事只需審閱及批准。
-- 上傳資料是本次整理的來源，不自動視為正式知識；讀不到的頁面或圖片需說明，不猜補。目前只儲存整理後的正文，不上傳原始附件。
-- 同事明確批准指定的修改時，完成修改及準備後直接儲存；沒有新變動不重複要求批准。
-
-## 已實作
-
-- `prepare_knowledge_document`：檢查位置、同名文件及正文格式，保留完整審閱稿；不修改 Lark。
-- `publish_approved_document`：批准後新增 Wiki 文件及正文，讀回驗證標題、位置、文字與表格。
-- `inspect_document_publication`：寫入結果不明時只讀檢查，不重複建立。
-
-設定 `LARK_DOCUMENT_WIKI_ROOT_URL` 及 `ENABLE_LARK_DOCUMENT_WRITES=true` 後可進行實際驗收；應用程式亦須有目標 Wiki 新增權限及文件讀寫權限。草稿與寫入紀錄保存在本機 `.lemma-drafts/`，不需要新增 Base 表。
-
-文字、Markdown 標題、清單、引用、程式碼及一般表格已支援。原始 PDF／圖片上傳、覆蓋既有文件不在首版範圍；上傳內容由 ChatGPT 讀取後整理成正文。離線測試不代表已通過實際 Lark 權限及文件呈現驗收，請依 [測試 prompts](../operations/test-prompts.md) 的文件儲存案例驗收。
+Before production deployment, set `LARK_DOCUMENT_WIKI_ROOT_URL` and `ENABLE_LARK_DOCUMENT_WRITES=true`, grant the Lark app `docx:document` and `wiki:wiki`, and make the app a target Wiki space administrator.
