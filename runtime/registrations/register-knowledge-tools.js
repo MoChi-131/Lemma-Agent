@@ -12,6 +12,7 @@ const READ_ONLY = {
   openWorldHint: true,
 };
 
+/** Wrap structured data in both MCP text and structured-content forms. */
 function jsonResult(result, { isError = false } = {}) {
   return {
     ...(isError ? { isError: true } : {}),
@@ -20,11 +21,15 @@ function jsonResult(result, { isError = false } = {}) {
   };
 }
 
+/** Build a concise public MCP error without exposing upstream response details. */
 function errorResult(message) {
   return { isError: true, content: [{ type: 'text', text: message }] };
 }
 
-/** Register the same read-only registry tools on stdio and HTTP MCP servers. */
+/**
+ * Register the same read-only registry and external-governance tools on both transports.
+ * @param {object} server MCP server receiving tool definitions.
+ */
 function registerKnowledgeTools(server) {
   server.registerTool('get_knowledge_metadata', {
     title: 'Get Knowledge Metadata',

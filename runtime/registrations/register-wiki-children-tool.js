@@ -3,6 +3,7 @@ const {
   listLarkWikiChildrenTool,
 } = require('../../tools/lark/wiki/list-lark-wiki-children');
 
+/** Register the optional low-level, read-only immediate-child listing tool. */
 function registerWikiChildrenTool(server) {
   server.registerTool('list_lark_wiki_children', {
     title: 'List Lark Wiki Children',

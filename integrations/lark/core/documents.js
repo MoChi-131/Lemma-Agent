@@ -15,11 +15,12 @@ const MAX_WHITEBOARD_IMAGE_BYTES = 50 * 1024 * 1024;
 const WHITEBOARD_IMAGE_TIMEOUT_MS = 30000;
 const IMAGE_FILE_PATTERN = /\.(?:png|jpe?g|gif|webp|bmp|tiff?)$/i;
 
+/** Read a document's plain text through the official MCP adapter. */
 async function readDocument(documentId, { signal } = {}, { mcp = officialMcp } = {}) {
   return readRawContent(documentId, { signal, mcp });
 }
 
-/** Read text/blocks through official MCP; retain binary and embedded-resource readers. */
+/** Read text, tables, attachments, images, Sheets, and whiteboards for one document. */
 async function readDocumentData(documentId, { signal } = {}, deps = {}) {
   const getToken = deps.getToken || getTenantAccessToken;
   const fetchImpl = deps.fetch || fetch;
@@ -51,6 +52,7 @@ async function readDocumentData(documentId, { signal } = {}, deps = {}) {
   };
 }
 
+/** Request the raw Docx text payload from the official MCP. */
 async function readRawContent(documentId, { signal, mcp }) {
   const data = await mcp.call(TOOLS.rawContent, { path: { document_id: documentId } }, { signal });
   if (typeof data.content !== "string") {
@@ -59,6 +61,7 @@ async function readRawContent(documentId, { signal, mcp }) {
   return data.content;
 }
 
+/** Read every Docx block page while rejecting missing or repeated cursors. */
 async function readDocumentBlocks(documentId, { signal, mcp }) {
   const blocks = [];
   let pageToken;
@@ -84,6 +87,7 @@ async function readDocumentBlocks(documentId, { signal, mcp }) {
   throw new Error("Read document blocks failed: page limit exceeded.");
 }
 
+/** Build authenticated fetch options for Lark media endpoints. */
 function requestOptions(accessToken, signal) {
   return {
     signal,
@@ -91,6 +95,7 @@ function requestOptions(accessToken, signal) {
   };
 }
 
+/** Reject failed Lark REST responses before consuming their payload. */
 function assertLarkResponse(response, data, operation) {
   if (!response.ok || data.code !== 0) {
     throw new Error(`${operation} failed: ${JSON.stringify(data)}`);
@@ -119,6 +124,7 @@ function extractTables(blocks) {
   });
 }
 
+/** Collect all text reachable from one table-cell block. */
 function extractCellText(cellId, byId) {
   const cell = byId.get(cellId);
   if (!cell) return "";
@@ -135,6 +141,7 @@ function extractCellText(cellId, byId) {
   return walk(cell).filter(Boolean).join("\n").trim();
 }
 
+/** Extract text-like elements from one Lark block. */
 function extractBlockText(block) {
   for (const value of Object.values(block)) {
     if (!value || typeof value !== "object" || !Array.isArray(value.elements)) continue;
@@ -149,6 +156,7 @@ function extractBlockText(block) {
   return [];
 }
 
+/** Locate embedded Sheets and split each combined token into spreadsheet and sheet IDs. */
 function findEmbeddedSheets(blocks) {
   return blocks.filter(block => block.sheet?.token).map(block => {
     const token = block.sheet.token;
@@ -161,6 +169,7 @@ function findEmbeddedSheets(blocks) {
   });
 }
 
+/** Read every embedded Sheet, returning a per-Sheet failure instead of failing the document. */
 async function readEmbeddedSheets(blocks, accessToken, { signal, fetchImpl }) {
   return Promise.all(findEmbeddedSheets(blocks).map(async sheet => {
     try {
@@ -177,6 +186,7 @@ async function readEmbeddedSheets(blocks, accessToken, { signal, fetchImpl }) {
   }));
 }
 
+/** List sheet tabs when an embedded block does not name one specific tab. */
 async function listSheetIds(spreadsheetToken, accessToken, { signal, fetchImpl }) {
   const response = await fetchImpl(
     `https://open.larksuite.com/open-apis/sheets/v3/spreadsheets/${encodeURIComponent(spreadsheetToken)}/sheets/query`,
@@ -187,6 +197,7 @@ async function listSheetIds(spreadsheetToken, accessToken, { signal, fetchImpl }
   return (data.data?.sheets || []).map(sheet => sheet.sheet_id).filter(Boolean);
 }
 
+/** Read the populated value range for one Sheet tab. */
 async function readSheetValues(spreadsheetToken, sheetId, accessToken, { signal, fetchImpl }) {
   const response = await fetchImpl(
     `https://open.larksuite.com/open-apis/sheets/v2/spreadsheets/${encodeURIComponent(spreadsheetToken)}/values/${encodeURIComponent(sheetId)}`,
@@ -202,6 +213,7 @@ async function readSheetValues(spreadsheetToken, sheetId, accessToken, { signal,
   };
 }
 
+/** Locate file attachment blocks for later extraction. */
 function findFileAttachments(blocks) {
   return blocks.filter(block => block.file?.token).map(block => ({
     block_id: block.block_id,
@@ -210,6 +222,7 @@ function findFileAttachments(blocks) {
   }));
 }
 
+/** Locate image blocks and image files without downloading them yet. */
 function findEmbeddedImages(blocks) {
   return blocks.flatMap(block => {
     if (block.image?.token) {
@@ -236,6 +249,7 @@ function findEmbeddedImages(blocks) {
   });
 }
 
+/** Locate whiteboard blocks across Lark's supported block shapes. */
 function findEmbeddedWhiteboards(blocks) {
   return blocks.filter(block => block.block_type === 43 && (
     block.board?.token || block.board?.whiteboard_id ||
@@ -251,6 +265,7 @@ function findEmbeddedWhiteboards(blocks) {
   }));
 }
 
+/** Download a bounded number of document images and return isolated failures. */
 async function readEmbeddedImages(blocks, accessToken, { signal, fetchImpl }) {
   const images = [...findEmbeddedImages(blocks), ...findEmbeddedWhiteboards(blocks)];
   const selected = images.slice(0, MAX_EMBEDDED_IMAGES);
@@ -304,7 +319,7 @@ async function readEmbeddedImages(blocks, accessToken, { signal, fetchImpl }) {
   return results;
 }
 
-/** Read original whiteboard nodes so text is available without OCR or a thumbnail. */
+/** Read whiteboard source nodes first so text survives slow image downloads. */
 async function readEmbeddedWhiteboards(blocks, accessToken, {
   signal, fetchImpl, imageByteLimit = MAX_WHITEBOARD_IMAGE_BYTES,
   imageTimeoutMs = WHITEBOARD_IMAGE_TIMEOUT_MS,
@@ -355,7 +370,7 @@ async function readEmbeddedWhiteboards(blocks, accessToken, {
   return reads.map(read => read.result);
 }
 
-/** Download original media for image nodes instead of relying on the board preview. */
+/** Download original media for whiteboard image nodes in bounded batches. */
 async function readWhiteboardNodeImages(whiteboard, nodes, accessToken, { signal, fetchImpl, budget }) {
   const imageNodes = nodes.filter(node => node.type === 'image' && node.image?.token);
   const results = [];
@@ -433,6 +448,7 @@ async function readWhiteboardNodeImages(whiteboard, nodes, accessToken, { signal
   return results;
 }
 
+/** Stream an image with a hard byte limit to avoid unbounded memory use. */
 async function readBoundedImageBytes(response, signal) {
   if (!response.body?.getReader) {
     const bytes = Buffer.from(await response.arrayBuffer());
@@ -458,6 +474,7 @@ async function readBoundedImageBytes(response, signal) {
   }
 }
 
+/** Produce searchable text and layout metadata from whiteboard source nodes. */
 function summarizeWhiteboardNodes(nodes) {
   const textNodes = [];
   let imageNodeCount = 0;
@@ -505,10 +522,12 @@ function summarizeWhiteboardNodes(nodes) {
   };
 }
 
+/** Return finite dimensions only; Lark may omit or malform optional geometry. */
 function finiteNumber(value) {
   return Number.isFinite(value) ? value : null;
 }
 
+/** Extract supported PDF attachments while reporting unsupported files explicitly. */
 async function readFileAttachments(blocks, accessToken, { signal, fetchImpl }, deps) {
   const parsePdf = deps.parsePdf || pdfParse;
   return Promise.all(findFileAttachments(blocks).map(async file => {
@@ -559,6 +578,7 @@ async function readFileAttachments(blocks, accessToken, { signal, fetchImpl }, d
   }));
 }
 
+/** Convert an upstream embedded-resource error into a safe user-facing result. */
 function contentReadFailure(blockId, errorCode, error) {
   const sizeError = error instanceof Error && error.message.includes("extraction limit");
   return {

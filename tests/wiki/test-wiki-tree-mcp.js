@@ -1,3 +1,4 @@
+// Verifies the stdio MCP server exposes the Wiki crawler alongside document reading.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { spawn, execFile } = require("node:child_process");

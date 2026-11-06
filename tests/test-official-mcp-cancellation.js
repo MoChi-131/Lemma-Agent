@@ -1,3 +1,4 @@
+// Exercises worker HTTP cancellation and deadline propagation with local test servers.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

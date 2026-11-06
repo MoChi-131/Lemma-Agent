@@ -22,6 +22,7 @@
     "test:wiki-tree:remote": "node tests/wiki/test-wiki-tree-remote.js",
     "mcp:http": "node runtime/servers/lark-mcp-http-server.js",
     "mcp:start": "node runtime/servers/lark-mcp-server.js",
+    "logs:prune": "node scripts/maintenance/prune-logs.js",
     "test:lark-auth": "node scripts/lark/test-auth.js",
     "test:mcp": "node tests/mcp/test-mcp-client.js",
     "test:wiki-search": "node --test --test-isolation=none tests/wiki/test-wiki-search.js tests/wiki/test-wiki-tree-mcp.js",

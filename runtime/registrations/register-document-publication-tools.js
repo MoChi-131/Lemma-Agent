@@ -1,6 +1,11 @@
 const { z } = require('zod');
 const { createDocumentPublisher } = require('../../integrations/lark/documents/document-publication');
 
+/**
+ * Register the minimal write surface: publish one confirmed document or inspect it.
+ * @param {object} server MCP server receiving tool definitions.
+ * @param {object} publisher injectable publisher for tests.
+ */
 function registerDocumentPublicationTools(server, publisher = createDocumentPublisher()) {
   const definitions = [
     ['publish_approved_document', 'Publish Approved Wiki Document',

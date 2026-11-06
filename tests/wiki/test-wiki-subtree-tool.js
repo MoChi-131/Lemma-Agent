@@ -1,3 +1,4 @@
+// Tests bounded Docx subtree reads, coverage accounting, and cancellation isolation.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { readLarkWikiSubtreeTool: subtree } = require("../../tools/lark/wiki/read-lark-wiki-subtree");

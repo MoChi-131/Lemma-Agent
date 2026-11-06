@@ -1,3 +1,4 @@
+// Traverses Wiki node metadata only; it deliberately never reads document bodies.
 const wiki = require("./wiki");
 
 const LIMITS = Object.freeze({
@@ -5,6 +6,11 @@ const LIMITS = Object.freeze({
   maxPages: 2000, timeoutMs: 30000,
 });
 
+/**
+ * Validate a Wiki root URL and cap traversal work before any Lark request is sent.
+ * @param {{url: string, max_depth?: number, max_nodes?: number}} input crawl request.
+ * @returns {{origin: string, token: string, max_depth: number, max_nodes: number}} safe crawl settings.
+ */
 function validateCrawlInput({ url, max_depth = 4, max_nodes = 100 } = {}) {
   let parsed;
   try { parsed = new URL(url); } catch { throw new Error("A valid HTTPS Lark Wiki URL is required."); }
@@ -22,6 +28,11 @@ function validateCrawlInput({ url, max_depth = 4, max_nodes = 100 } = {}) {
   return { origin: parsed.origin, token: parsed.pathname.split("/")[2], max_depth, max_nodes };
 }
 
+/**
+ * Validate Lark node metadata and expose the stable shape consumed by callers.
+ * @param {object} node raw Wiki node returned by Lark.
+ * @returns {object} normalized node with a canonical URL and optional parent token.
+ */
 function normalizeNode(node, origin, spaceId, parentToken = null) {
   if (!node || typeof node.node_token !== "string" ||
       !/^[a-zA-Z0-9]+$/.test(node.node_token) ||
@@ -42,8 +53,13 @@ function normalizeNode(node, origin, spaceId, parentToken = null) {
   };
 }
 
-// Only get_node and child-list APIs are used; document bodies are never fetched.
-// Dependencies are injectable so the traversal can be tested without credentials.
+/**
+ * Breadth-first crawl of a Wiki hierarchy with depth, node, page, and time limits.
+ * Only get-node and child-list APIs are used; document bodies are never fetched.
+ * @param {object} input validated by {@link validateCrawlInput}.
+ * @param {object} api injectable Wiki adapter, used for credential-free tests.
+ * @returns {Promise<object>} partial tree plus explicit truncation reasons and recoverable errors.
+ */
 async function crawlWikiTree(input, api = wiki) {
   const { origin, token, max_depth, max_nodes } = validateCrawlInput(input);
   const signal = AbortSignal.timeout(LIMITS.timeoutMs);

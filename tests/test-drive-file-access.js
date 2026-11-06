@@ -1,3 +1,4 @@
+// Confirms Drive access inspection stays within the reviewed read-only MCP tools.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { inspectFileAccess } = require('../integrations/lark/drive/file-access');

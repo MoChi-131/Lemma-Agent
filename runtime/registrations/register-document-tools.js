@@ -4,6 +4,7 @@ const {
 } = require('../../tools/lark/documents/read-lark-document');
 const { documentResult } = require('../core/document-output');
 
+/** Register the read-only Lark document tool and normalize failures as MCP errors. */
 function registerDocumentTools(server) {
   server.registerTool('read_lark_document', {
     title: 'Read Lark Document',

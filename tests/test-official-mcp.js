@@ -1,3 +1,4 @@
+// Covers the official Lark MCP adapter's connection, allow-list, and safe-failure contract.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createOfficialMcpClient, parseResult, TOOLS } = require('../integrations/lark/official-mcp/client');

@@ -24,4 +24,4 @@ npm.cmd test
 npm.cmd run mcp:http
 ```
 
-Keep port `6688` private. Use HTTPS plus an authenticated public endpoint or Secure MCP Tunnel for ChatGPT access.
+Keep port `6688` private. Use HTTPS plus an authenticated public endpoint or Secure MCP Tunnel for ChatGPT access. Use `/health` for liveness and `/ready` for configuration readiness. Run `npm.cmd run logs:prune` daily; set `ERROR_WEBHOOK_URL` only for a trusted HTTPS incident endpoint.

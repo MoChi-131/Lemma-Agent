@@ -1,4 +1,5 @@
-// Paths and depth are relative to the requested subtree, not the whole space.
+// Converts one crawl inventory into stable, subtree-relative metadata records.
+/** Flatten a Wiki tree while retaining each node's ancestry and retrieval timestamp. */
 function flattenWikiMetadata(inventory, retrievedAt = new Date().toISOString()) {
   const queue = [{ node: inventory.root, ancestors: [] }];
   const result = [];

@@ -1,3 +1,4 @@
+// Reads and normalizes the published Lark Base metadata registry used by retrieval.
 const { readValidatedMetadata } = require('./validated-metadata');
 const { officialMcp, TOOLS } = require('../official-mcp/client');
 const DEFAULT_WHITELIST_URL = 'https://ysgjyjx6z20y.sg.larksuite.com/wiki/KkWCwccRviWlJLk8bAFlEToagKc?table=tblxxLSOp5lg3z9g';
@@ -77,6 +78,13 @@ async function readKnowledgeRegistry(
   });
 }
 
+/**
+ * Resolve a Base/Wiki URL and return every raw Base record.
+ * @param {{registryUrl: string}} input configured Lark Base or Wiki table URL.
+ * @param {object} deps test-only dependency overrides.
+ * @returns {Promise<Array<{record_id: string, fields: object}>>} unnormalized Base records.
+ * @throws {Error} when the URL, Base token, pagination, or Lark request is invalid.
+ */
 async function readBaseRegistry({ registryUrl }, deps = {}) {
   const { sourceType, appToken, tableId } = parseRegistryUrl(registryUrl);
   const deadline = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
@@ -122,6 +130,11 @@ async function readExternalWhitelist(
   return readBaseRegistry({ registryUrl: whitelistUrl }, deps);
 }
 
+/**
+ * Validate a trusted Lark Base/Wiki table URL before its tokens reach an API call.
+ * @param {string} registryUrl HTTPS URL containing a `table` query parameter.
+ * @returns {{sourceType: string, appToken: string, tableId: string}} parsed location tokens.
+ */
 function parseRegistryUrl(registryUrl) {
   const url = new URL(registryUrl);
   const pathMatch = url.pathname.match(REGISTRY_PATH_PATTERN);
@@ -147,6 +160,14 @@ function parseRegistryUrl(registryUrl) {
   };
 }
 
+/**
+ * Resolve a Wiki node to its underlying Base app token.
+ * This prevents treating an arbitrary Wiki document as a table source.
+ * @param {string} wikiNodeToken Wiki node token from the URL.
+ * @param {AbortSignal} signal cancellation and deadline signal.
+ * @param {object} deps injectable Wiki/MCP clients for tests.
+ * @returns {Promise<string>} validated Base app token.
+ */
 async function resolveWikiBaseToken(wikiNodeToken, signal, deps) {
   const node = await (deps.getWikiNode || require('../wiki/wiki').getWikiNode)(wikiNodeToken,
     { signal }, { mcp: deps.mcp || officialMcp });
@@ -162,6 +183,11 @@ async function resolveWikiBaseToken(wikiNodeToken, signal, deps) {
   return node.obj_token;
 }
 
+/**
+ * Follow Base pagination until all records are read or a safety limit is reached.
+ * Repeated page tokens are rejected to avoid an infinite loop from a faulty response.
+ * @returns {Promise<Array>} complete raw record list.
+ */
 async function fetchAllBaseRecords({ app, tableId, signal, deps }) {
   if (!BASE_TOKEN_PATTERN.test(app || '')) {
     throw new Error('Invalid Base token');
@@ -198,6 +224,10 @@ async function fetchAllBaseRecords({ app, tableId, signal, deps }) {
   throw new Error('Page limit exceeded');
 }
 
+/**
+ * Fetch and validate one Base records page from the official Lark MCP.
+ * @returns {Promise<{items: Array, hasMore: boolean, nextPageToken: string|undefined}>} page data.
+ */
 async function fetchBaseRecordPage({ app, tableId, pageToken, signal, deps }) {
   const data = await (deps.mcp || officialMcp).call(TOOLS.baseRecords, {
     path: { app_token: app, table_id: tableId },
@@ -217,6 +247,10 @@ async function fetchBaseRecordPage({ app, tableId, pageToken, signal, deps }) {
   };
 }
 
+/**
+ * Return a safe, actionable registry error without leaking tokens or upstream payloads.
+ * @returns {Error} stage-specific error suitable for an MCP response or log.
+ */
 function buildRegistryReadError({ error, stage, httpStatus, apiCode, signal }) {
   const hints = {
     authentication: 'Check LARK_APP_ID and LARK_APP_SECRET in .env.',
@@ -236,6 +270,7 @@ function buildRegistryReadError({ error, stage, httpStatus, apiCode, signal }) {
   );
 }
 
+/** Return only a small allow-list of useful network error codes for diagnostics. */
 function getSafeNetworkCode(error) {
   const code = error.cause?.code;
   const safeCodes = ['ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET', 'UND_ERR_CONNECT_TIMEOUT'];
@@ -298,11 +333,13 @@ function normalizeDate(value) {
   return null;
 }
 
+/** Convert a Date or timestamp-like value to an ISO calendar date, or null if invalid. */
 function dateToIsoDate(value) {
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
 }
 
+/** Accept only explicit YYYY-MM-DD style strings, avoiding locale-dependent date parsing. */
 function normalizeDateString(value) {
   const match = value.trim().match(/^(\d{4})[-/.](\d{2})[-/.](\d{2})(T|$)/);
 
@@ -313,6 +350,7 @@ function normalizeDateString(value) {
   return dateToIsoDate(`${match[1]}-${match[2]}-${match[3]}`);
 }
 
+/** Search known Lark date-value keys before considering primitive nested fallbacks. */
 function normalizeDateObject(value) {
   for (const key of larkDateObjectKeys) {
     if (value[key] != null && value[key] !== '') {
@@ -351,6 +389,7 @@ function normalizeRecord(record) {
   };
 }
 
+/** Map editor-facing Base column labels to the stable public metadata contract. */
 function mapBaseFieldsToMetadata(rawFields) {
   const metadata = {};
 
@@ -371,6 +410,7 @@ function mapBaseFieldsToMetadata(rawFields) {
   return metadata;
 }
 
+/** Determine required fields from the record scope and document type. */
 function findMissingRequiredFields(metadata) {
   const required = ['title', 'scope', 'primary_domain', 'document_type'];
 
@@ -383,6 +423,7 @@ function findMissingRequiredFields(metadata) {
   return required.filter(key => isMissingRequiredValue(metadata[key]));
 }
 
+/** Treat blank values and the literal N/A as missing for governance purposes. */
 function isMissingRequiredValue(value) {
   return isBlankValue(value) || value === 'N/A';
 }
@@ -399,6 +440,7 @@ function normalizeWhitelistRecord(record) {
   };
 }
 
+/** Return the first nonblank compatible whitelist column, supporting legacy table labels. */
 function readFirstField(rawFields, labels) {
   for (const label of labels) {
     if (!isBlankValue(rawFields[label])) return rawFields[label];
@@ -467,6 +509,7 @@ async function getKnowledgeMetadata(input = {}, deps = {}) {
   };
 }
 
+/** Reject credential-bearing or non-HTTPS document URLs before filtering metadata. */
 function validateLookupUrl(url) {
   if (url === undefined) {
     return;

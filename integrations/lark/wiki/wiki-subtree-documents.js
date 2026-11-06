@@ -1,3 +1,4 @@
+// Reads document bodies for already-discovered Wiki nodes, within fixed content budgets.
 const { readDocument } = require("../core/documents");
 
 const SUBTREE_LIMITS = Object.freeze({
@@ -9,15 +10,27 @@ const SUBTREE_LIMITS = Object.freeze({
   documentTimeoutMs: 8000,
 });
 
-// UTF-16 character budget, without splitting a Unicode surrogate pair.
+/**
+ * Trim text to a UTF-16 character budget without splitting a Unicode surrogate pair.
+ * @param {string} text source text.
+ * @param {number} limit maximum UTF-16 code units.
+ * @returns {string} safely bounded text.
+ */
 function boundedText(text, limit) {
   let end = Math.min(text.length, limit);
   if (end > 0 && end < text.length && /[\uD800-\uDBFF]/.test(text[end - 1])) end--;
   return text.slice(0, end);
 }
 
-// Read known docx tokens directly: no second Wiki lookup and no write APIs.
-// Budgets apply to attempts, including failed reads, rather than only successes.
+/**
+ * Read eligible Docx nodes from a previously crawled subtree.
+ * Uses known Docx tokens directly (no second Wiki lookup and no write APIs). Limits
+ * apply to attempts, including failed reads, so an unavailable node cannot bypass them.
+ * @param {Array<object>} nodes normalized Wiki nodes.
+ * @param {number} maxDocuments maximum number of document read attempts.
+ * @param {object} options dependency injection and overall cancellation signal.
+ * @returns {Promise<object>} documents, skips, errors, counts, and truncation details.
+ */
 async function readWikiSubtreeDocuments(nodes, maxDocuments, {
   read = readDocument,
   signal = AbortSignal.timeout(SUBTREE_LIMITS.readTimeoutMs),

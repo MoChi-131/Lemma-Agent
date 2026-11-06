@@ -1,5 +1,6 @@
 require("dotenv").config({ quiet: true });
 
+/** Obtain a short-lived tenant token for direct media, Sheet, and PDF requests. */
 async function getTenantAccessToken({ signal } = {}) {
   const response = await fetch(
     "https://open.larksuite.com/open-apis/auth/v3/tenant_access_token/internal",

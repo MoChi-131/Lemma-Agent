@@ -6,6 +6,7 @@ const scope = {
   max_depth: z.number().int().min(0).max(20).default(4),
   max_nodes: z.number().int().min(1).max(1000).default(100),
 };
+/** Register metadata inventory and bounded Wiki search tools as read-only operations. */
 function registerWikiSearchTools(server) {
   for (const [name, title, description, inputSchema, handler] of [
     ["get_lark_wiki_metadata", "Get Lark Wiki Metadata",

@@ -3,6 +3,12 @@ const { crawlLarkWikiTreeTool } = require("./crawl-lark-wiki-tree");
 const { validateCrawlInput } = require("../../../integrations/lark/wiki/wiki-tree");
 const { readWikiSubtreeDocuments, SUBTREE_LIMITS } = require("../../../integrations/lark/wiki/wiki-subtree-documents");
 
+/**
+ * Crawl a Wiki subtree then read bounded Docx content from its discovered nodes.
+ * @param {object} input Wiki URL plus crawl and document limits.
+ * @param {object} deps injectable crawl/read dependencies and cancellation signal.
+ * @returns {Promise<object>} content, skips, errors, and combined crawl/read truncation data.
+ */
 async function readLarkWikiSubtreeTool(input = {}, {
   crawl = crawlLarkWikiTreeTool,
   read,

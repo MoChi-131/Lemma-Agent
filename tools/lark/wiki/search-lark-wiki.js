@@ -7,8 +7,10 @@ const {
 const { getLarkWikiMetadataTool } = require('./get-lark-wiki-metadata');
 
 const SEARCH_TARGETS = ['title', 'content', 'both'];
+/** Case-fold text for literal matching while preserving original text for output. */
 const fold = text => text.toLowerCase();
 
+/** Create a Unicode-safe excerpt around a folded-query match. */
 function buildExcerpt(text, foldedQuery) {
   const characters = Array.from(text);
   const foldedCharacters = [];
@@ -35,6 +37,7 @@ function buildExcerpt(text, foldedQuery) {
   };
 }
 
+/** Validate search-specific limits after shared Wiki URL validation has passed. */
 function validateSearchInput({ query, search_in, max_results, max_documents }) {
   if (typeof query !== 'string' || !query.trim() || query.length > 200) {
     throw new Error('query must contain 1–200 characters');
@@ -48,6 +51,7 @@ function validateSearchInput({ query, search_in, max_results, max_documents }) {
   }
 }
 
+/** Build a ranked title/content match while retaining document-read coverage metadata. */
 function createMatch(node, document, needle, searchIn) {
   const titleMatch = searchIn !== 'content' && fold(node.title).includes(needle);
   const contentMatch = searchIn !== 'title' && document && fold(document.content).includes(needle);
@@ -69,6 +73,12 @@ function createMatch(node, document, needle, searchIn) {
   };
 }
 
+/**
+ * Search bounded Wiki metadata and optional Docx text with literal case-insensitive matching.
+ * @param {object} input URL, query, target fields, and read limits.
+ * @param {object} deps injectable metadata/read adapters and cancellation signal.
+ * @returns {Promise<object>} ranked matches with explicit coverage and truncation information.
+ */
 async function searchLarkWikiTool(
   input = {},
   { metadata = getLarkWikiMetadataTool, read, signal } = {},

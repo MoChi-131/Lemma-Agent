@@ -8,6 +8,7 @@ const {
   SERVER_INFO,
 } = require('../core/create-lark-mcp-server');
 
+/** Start the stdio transport; stdout remains reserved exclusively for MCP protocol frames. */
 async function main() {
   logger.info('MCP server starting', { transport: 'stdio', version: SERVER_INFO.version });
   const server = createLarkMcpServer();

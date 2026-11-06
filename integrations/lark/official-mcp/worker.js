@@ -1,9 +1,10 @@
-// Private stdio worker. Run the pinned official MCP; never expose an HTTP listener.
+// Private stdio worker. Runs the pinned official MCP; never exposes an HTTP listener.
 const path = require('node:path');
 const { TOOLS } = require('./constants');
 
 // Keep the official package's state inside the ignored project logs directory.
 const { ENV_PATHS } = require('@larksuiteoapi/lark-mcp/dist/utils/constants');
+// Local user OAuth is an opt-in development mode; production normally uses tenant credentials.
 const userOAuth = process.env.LEMMA_LARK_USER_OAUTH === 'true';
 for (const key of Object.keys(ENV_PATHS)) {
   // Local user OAuth tokens are encrypted in the official package's default
@@ -20,6 +21,7 @@ require('./http-lifecycle').installHttpLifecycle({
   McpServer, httpInstances: [commonHttpInstance, oapiHttpInstance],
 });
 
+// Restrict the official MCP to Lemma's reviewed tool allow-list before starting it.
 const cli = require.resolve('@larksuiteoapi/lark-mcp/dist/cli.js');
 process.argv = [process.execPath, cli, 'mcp', '--mode', 'stdio', '--domain',
   'https://open.larksuite.com', '--token-mode', userOAuth ? 'user_access_token' : 'tenant_access_token',

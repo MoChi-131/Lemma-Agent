@@ -14,7 +14,11 @@ const SERVER_INFO = {
   version: '1.1.0',
 };
 
-/** Build one MCP server so stdio and HTTP expose the same core tools. */
+/**
+ * Build one MCP server so stdio and HTTP expose the same core tools.
+ * @param {{includeWikiChildren?: boolean}} options enables the lower-level child-list tool when needed.
+ * @returns {McpServer} configured server with logging wrapped around every tool handler.
+ */
 function createLarkMcpServer({
   includeWikiChildren = false,
 } = {}) {

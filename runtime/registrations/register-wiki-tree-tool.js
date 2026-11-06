@@ -2,6 +2,7 @@ const { z } = require("zod");
 const { crawlLarkWikiTreeTool } = require("../../tools/lark/wiki/crawl-lark-wiki-tree");
 const { LIMITS } = require("../../integrations/lark/wiki/wiki-tree");
 
+/** Register the metadata-only Wiki crawler used for safe directory inventory. */
 function registerWikiTreeTool(server) {
   server.registerTool("crawl_lark_wiki_tree", {
     title: "Crawl Lark Wiki Tree",

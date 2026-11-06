@@ -3,6 +3,7 @@ const { LIMITS } = require("../../integrations/lark/wiki/wiki-tree");
 const { SUBTREE_LIMITS } = require("../../integrations/lark/wiki/wiki-subtree-documents");
 const { readLarkWikiSubtreeTool } = require("../../tools/lark/wiki/read-lark-wiki-subtree");
 
+/** Register the bounded subtree reader; the tool itself validates all read limits. */
 function registerWikiSubtreeTool(server) {
   server.registerTool("read_lark_wiki_subtree", {
     title: "Read Lark Wiki Subtree",

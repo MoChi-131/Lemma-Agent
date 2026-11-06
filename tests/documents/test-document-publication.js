@@ -1,3 +1,4 @@
+// Tests minimal confirmed document publication and post-create verification behavior.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createDocumentPublisher } = require('../../integrations/lark/documents/document-publication');

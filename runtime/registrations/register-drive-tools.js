@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { inspectLarkFileAccessTool } = require('../../tools/lark/drive/inspect-lark-file-access');
 
+/** Register a metadata-only Drive access check; it never changes file permissions. */
 function registerDriveTools(server) {
   server.registerTool('inspect_lark_file_access', {
     title: 'Inspect Lark File Access',

@@ -1,4 +1,8 @@
-/** Inspect known result/resource fields only; never log their contents. */
+/**
+ * Summarize known result/resource status fields without inspecting or logging their contents.
+ * @param {object} result structured tool result.
+ * @returns {{resource_issues: number, errors: number, truncated: boolean}} safe status summary.
+ */
 function partialResultInfo(result) {
   const seen = new WeakSet();
   const info = { resource_issues: 0, errors: 0, truncated: false };

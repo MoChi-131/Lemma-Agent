@@ -1,3 +1,4 @@
+// Converts Lark's Markdown blocks into a stable, comparable content tree.
 const { isDeepStrictEqual } = require('node:util');
 
 const TEXT_KINDS = {
@@ -6,6 +7,7 @@ const TEXT_KINDS = {
   12: 'bullet', 13: 'ordered', 14: 'code', 15: 'quote', 17: 'todo',
 };
 
+/** Return one block's children, ensuring table-cell order remains deterministic. */
 function childIds(block) {
   const children = block.children || block.table?.cells || [];
   if (!Array.isArray(children)) throw new Error('Invalid document child blocks.');
@@ -71,6 +73,7 @@ function contentTree(blocks, roots) {
   return tree;
 }
 
+/** Validate converted Markdown and remove Lark-only fields before writing it. */
 function prepareConvertedContent(converted) {
   if (converted.block_id_to_image_urls?.length) throw new Error('Image uploads are not supported by this writer.');
   const copy = structuredClone(converted);
@@ -90,6 +93,7 @@ function prepareConvertedContent(converted) {
   return { converted: { blocks: copy.blocks, first_level_block_ids: copy.first_level_block_ids }, expected };
 }
 
+/** Compare the stored document tree with the converted content expected by the caller. */
 function verifyContent(blocks, documentId, expected) {
   const root = blocks.find(block => block.block_id === documentId && block.block_type === 1);
   if (!root) throw new Error('Read-back is missing the document root.');

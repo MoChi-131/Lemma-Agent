@@ -1,3 +1,4 @@
+// Coordinates one explicit, verified Wiki publication through official Lark MCP.
 const { createOfficialPublicationApi } = require('./publication-api');
 const { prepareConvertedContent, verifyContent } = require('./publication-content');
 const { validateCrawlInput } = require('../wiki/wiki-tree');
@@ -14,6 +15,7 @@ function wikiUrl(url) {
   return { origin, token, url: `${origin}/wiki/${token}` };
 }
 
+/** Ensure Lark returned the minimum metadata needed to trust a Wiki node. */
 function validateNode(node, token) {
   if (!node || node.node_token !== token || !/^\d+$/.test(node.space_id) ||
       typeof node.title !== 'string' || typeof node.parent_node_token !== 'string') {
@@ -22,6 +24,7 @@ function validateNode(node, token) {
   return node;
 }
 
+/** Prove that a requested parent is inside the configured Wiki publication root. */
 async function resolveParent(api, rootUrl, parentUrl) {
   const root = wikiUrl(rootUrl);
   const parent = wikiUrl(parentUrl);
@@ -46,6 +49,7 @@ async function resolveParent(api, rootUrl, parentUrl) {
   throw new Error('Location is outside the configured Wiki subtree or its ancestry cannot be confirmed.');
 }
 
+/** Build the read-only side of post-write verification. */
 function createPublicationReadApi({ mcp = officialMcp } = {}) {
   return {
     getNode: token => getWikiNode(token, {}, { mcp }),
@@ -53,6 +57,7 @@ function createPublicationReadApi({ mcp = officialMcp } = {}) {
   };
 }
 
+/** Validate the one-call publication contract before any Lark mutation. */
 function validatePublicationInput({ title, markdown, parent_url, approval_confirmed }) {
   if (approval_confirmed !== true) throw new Error('Set approval_confirmed=true to create the document.');
   if (!title?.trim() || title.trim().length > MAX_TITLE_LENGTH || /[\r\n]/.test(title) ||
@@ -62,6 +67,7 @@ function validatePublicationInput({ title, markdown, parent_url, approval_confir
   return title.trim();
 }
 
+/** Create the public publishing and inspection operations with injectable dependencies for tests. */
 function createDocumentPublisher({ env = process.env, apiFactory = createOfficialPublicationApi,
   readApiFactory = () => createPublicationReadApi() } = {}) {
   function rootUrl() {
@@ -70,6 +76,7 @@ function createDocumentPublisher({ env = process.env, apiFactory = createOfficia
   }
 
   return {
+    /** Create one verified Wiki Docx child after explicit caller confirmation. */
     async publishSimple({ title, markdown, parent_url, approval_confirmed }) {
       if (env.ENABLE_LARK_DOCUMENT_WRITES !== 'true') throw new Error('Document writing is disabled; set ENABLE_LARK_DOCUMENT_WRITES=true.');
       title = validatePublicationInput({ title, markdown, parent_url, approval_confirmed });
@@ -100,6 +107,7 @@ function createDocumentPublisher({ env = process.env, apiFactory = createOfficia
         verification: { complete: true, title_matches: true, parent_matches: true, content_matches: true } };
     },
 
+    /** Read metadata for a known Wiki document without changing Lark. */
     async inspectSimple({ url }) {
       const root = wikiUrl(rootUrl());
       const target = wikiUrl(url);

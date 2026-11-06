@@ -1,3 +1,4 @@
+// Tests bounded metadata-only Wiki crawling and its input/error safeguards.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { crawlLarkWikiTreeTool: crawl } = require("../../tools/lark/wiki/crawl-lark-wiki-tree");

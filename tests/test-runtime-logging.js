@@ -1,3 +1,4 @@
+// Verifies redacted, concise runtime logging without changing tool payloads.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createLogger, errorSummary } = require('../runtime/core/logger');

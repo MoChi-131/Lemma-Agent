@@ -1,7 +1,13 @@
 // Leave room below the SDK's default 10 MiB stdio frame limit for RPC metadata.
 const MAX_DOCUMENT_RESPONSE_BYTES = 8 * 1024 * 1024;
 
-/** Bound the serialized response, including duplicated structured/text metadata. */
+/**
+ * Build an MCP-safe document response within the SDK's frame-size allowance.
+ * Inline image bytes are omitted first; metadata remains available to explain omissions.
+ * @param {object} result tool result containing document metadata and optional image bytes.
+ * @param {{isError?: boolean}} options marks the MCP response as an error when required.
+ * @returns {object} MCP content and structured-content response.
+ */
 function documentResult(result, { isError = false } = {}) {
   const images = Array.isArray(result.images) ? result.images : [];
   const safeImages = images.map(({ data, ...metadata }) => metadata);

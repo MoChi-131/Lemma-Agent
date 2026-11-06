@@ -1,3 +1,4 @@
+// Covers document-resource extraction, size limits, and isolated embedded-resource failures.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const {

@@ -1,5 +1,6 @@
 const { listWikiChildren } = require('../../../integrations/lark/wiki/wiki');
 
+/** Map Lark child metadata to the public tool response without adding document content. */
 function normalizeNode(item) {
   return {
     title: item.title,
@@ -16,6 +17,11 @@ function normalizeNode(item) {
   };
 }
 
+/**
+ * List one paginated set of immediate Wiki children.
+ * @param {{space_id: string, parent_node_token: string, page_size?: number, page_token?: string}} input page request.
+ * @returns {Promise<object>} normalized child records and a continuation token when available.
+ */
 async function listLarkWikiChildrenTool({
   space_id,
   parent_node_token,

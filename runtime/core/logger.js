@@ -1,6 +1,7 @@
 const { randomUUID } = require('node:crypto');
 
 // Always use stderr: stdout is the MCP protocol channel in stdio mode.
+/** Remove control characters, URLs, credentials, and environment-held secrets from log fields. */
 function clean(value) {
   let text = String(value ?? '').replace(/[\x00-\x1f\x7f-\x9f]/g, ' ');
   for (const [key, secret] of Object.entries(process.env)) {
@@ -14,6 +15,7 @@ function clean(value) {
     .replace(/\s+/g, ' ').trim().slice(0, 180);
 }
 
+/** Convert an unknown failure into a compact, redacted operational message. */
 function errorSummary(error) {
   const message = typeof error === 'string' ? error : error?.message;
   // Upstream JSON can contain credentials, headers or document bodies.
@@ -21,6 +23,11 @@ function errorSummary(error) {
   return clean(message);
 }
 
+/**
+ * Create concise color-capable stderr logging without exposing request content or credentials.
+ * @param {{write?: Function, color?: boolean}} options test output writer and color override.
+ * @returns {{info: Function, success: Function, warn: Function, error: Function}} level-specific log functions.
+ */
 function createLogger({ write = line => process.stderr.write(line), color } = {}) {
   function log(level, message, fields = {}) {
     const enabled = color ?? (!('NO_COLOR' in process.env) &&

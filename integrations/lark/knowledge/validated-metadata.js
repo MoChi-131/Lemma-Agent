@@ -1,6 +1,7 @@
+// Reads only the last Journal-verified metadata publication for safe retrieval.
 const { createHash } = require('node:crypto');
 
-// A failed or in-progress publication must not expose half-updated metadata.
+/** Return the newest hash-verified metadata table, never an in-progress working Registry. */
 async function readValidatedMetadata({ validatedUrl, journalUrl }, { readTable }) {
   if (!validatedUrl || !journalUrl) throw new Error('Configure LARK_VALIDATED_METADATA_URL and LARK_VALIDATION_JOURNAL_URL before knowledge retrieval.');
   const journalRows = await readTable(journalUrl);
@@ -17,12 +18,14 @@ async function readValidatedMetadata({ validatedUrl, journalUrl }, { readTable }
   return rowsHash(rows) === latest.published_hash ? rows : latest.published_records;
 }
 
+/** Parse the Journal receipt cell across Lark's supported rich-text shapes. */
 function parseReceipt(value) {
   const text = Array.isArray(value) ? value.map(item => item?.text || '').join('')
     : typeof value === 'object' ? value?.text : value;
   try { return JSON.parse(text); } catch { return null; }
 }
 
+/** Compare Base table URLs while ignoring non-table query parameters. */
 function sameTable(left, right) {
   try {
     const a = new URL(left); const b = new URL(right);
@@ -30,7 +33,7 @@ function sameTable(left, right) {
   } catch { return false; }
 }
 
-// Same canonical hash contract as the independent management service.
+/** Hash normalized non-empty rows using the management service's canonical contract. */
 function rowsHash(rows) {
   const value = rows.filter(row => Object.keys(row.fields || {}).length > 0)
     .slice().sort((a, b) => a.record_id.localeCompare(b.record_id))
@@ -38,6 +41,7 @@ function rowsHash(rows) {
   return createHash('sha256').update(stableJson(value)).digest('hex');
 }
 
+/** Serialize arrays and objects in stable key order for deterministic hashing. */
 function stableJson(value) {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
   if (value && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableJson(value[key])}`).join(',')}}`;

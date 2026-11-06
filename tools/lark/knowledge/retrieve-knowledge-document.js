@@ -8,6 +8,9 @@ const {
 /**
  * Apply the registry retrieval gate before returning a document body.
  * This keeps metadata authorization and content retrieval in one MCP call.
+ * @param {{url: string}} input exact document URL to retrieve.
+ * @param {object} deps injectable readers for tests.
+ * @returns {Promise<object>} blocked result or authorized document content with registry metadata.
  */
 async function retrieveKnowledgeDocumentTool(input, deps = {}) {
   const readMetadata = deps.getKnowledgeMetadata || getKnowledgeMetadata;

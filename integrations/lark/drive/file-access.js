@@ -1,8 +1,10 @@
+// Inspects one known Lark resource without exposing collaborators or changing permissions.
 const { officialMcp, TOOLS } = require('../official-mcp/client');
 
 // Intersection of metadata and permission-check types.
 const TYPES = new Set(['doc', 'sheet', 'file', 'wiki', 'bitable', 'docx', 'mindnote']);
 
+/** Return safe metadata and whether the configured app can view the specified resource. */
 async function inspectFileAccess({ token, type }, { mcp = officialMcp } = {}) {
   if (typeof token !== 'string' || !/^[A-Za-z0-9]+$/.test(token) || !TYPES.has(type)) {
     throw new Error('Provide a Lark file token and supported file type.');

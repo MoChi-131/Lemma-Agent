@@ -1,5 +1,9 @@
 const { officialMcp } = require('../../integrations/lark/official-mcp/client');
 
+/**
+ * Close the child official-Lark-MCP process exactly once during service shutdown.
+ * @param {{stdio?: boolean}} options also stops when a stdio client closes stdin.
+ */
 function installOfficialMcpShutdown({ stdio = false } = {}) {
   let stopping = false;
   const stop = async () => {

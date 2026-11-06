@@ -13,15 +13,18 @@ const SEARCH_FIELDS = {
   owner_person: 1,
 };
 
+/** Convert scalar or list metadata into lowercase searchable text. */
 function normalizeText(value) {
   const items = Array.isArray(value) ? value : [value];
   return items.filter(Boolean).join(' ').toLocaleLowerCase();
 }
 
+/** Split a user query into unique tokens used for weighted metadata matching. */
 function queryTerms(query) {
   return [...new Set(query.toLocaleLowerCase().split(/[\s,;，；]+/u).filter(Boolean))];
 }
 
+/** Score a document's matching fields without accessing its document body. */
 function scoreDocument(document, terms) {
   const matchedFields = [];
   let score = 0;
@@ -44,14 +47,17 @@ const AUTHORITY_ORDER = Object.freeze({
   government: Object.freeze({ 'Internal Official': 3, Reference: 2 }),
 });
 
+/** Map an approved authority level to its ranking priority for the selected context. */
 function authorityRank(authorityLevel, rankingContext = 'business') {
   return AUTHORITY_ORDER[rankingContext]?.[authorityLevel] || 0;
 }
 
+/** Prefer formal Knowledge Base material over workspace-only records when tied. */
 function scopeRank(scope) {
   return scope === 'Knowledge Base' ? 2 : 1;
 }
 
+/** Prefer exact title/tag matches before partial term matches. */
 function exactMatchRank(document, query, terms) {
   const normalizedQuery = normalizeText(query).trim();
   const title = normalizeText(document.title).trim();
@@ -61,6 +67,7 @@ function exactMatchRank(document, query, terms) {
   return terms.some(term => tags.includes(term) || title.split(/\s+/).includes(term)) ? 1 : 0;
 }
 
+/** Convert dotted numeric versions into a comparable score; nonnumeric versions rank as zero. */
 function versionRank(version) {
   const numbers = String(version || '').match(/\d+/g);
   if (!numbers) return 0;
@@ -80,6 +87,7 @@ function rankDocument(document, query, terms, rankingContext) {
   };
 }
 
+/** Apply the deterministic ranking policy, including a locale-aware title tie-breaker. */
 function compareRankedDocuments(left, right) {
   return right.eligibilityRank - left.eligibilityRank ||
     right.exactMatchRank - left.exactMatchRank ||
@@ -90,7 +98,12 @@ function compareRankedDocuments(left, right) {
     String(left.document.title || '').localeCompare(String(right.document.title || ''), 'zh-Hant');
 }
 
-/** Search normalized Registry metadata before falling back to Wiki content search. */
+/**
+ * Search normalized Registry metadata before falling back to Wiki content search.
+ * @param {{query: string, retrieval_eligible_only?: boolean, max_results?: number, ranking_context?: string}} input search criteria.
+ * @param {object} deps injectable metadata reader for offline tests.
+ * @returns {Promise<object>} ranked metadata only; document bodies are never read here.
+ */
 async function searchKnowledgeRegistryTool(input, deps = {}) {
   const readMetadata = deps.getKnowledgeMetadata || getKnowledgeMetadata;
   const retrievalEligibleOnly = input.retrieval_eligible_only ?? true;

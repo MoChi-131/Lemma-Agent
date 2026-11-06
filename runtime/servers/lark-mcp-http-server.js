@@ -1,5 +1,6 @@
 require('dotenv').config({ quiet: true });
 const { logger, errorSummary, activityId } = require('../core/logger');
+const { notifyError } = require('../core/error-notifier');
 require('../core/official-mcp-shutdown').installOfficialMcpShutdown();
 logger.info('MCP server starting', { transport: 'http' });
 
@@ -35,6 +36,7 @@ app.use((req, res, next) => {
 });
 app.use(express.json());
 
+/** Return a protocol-shaped JSON-RPC error without reflecting request data. */
 function sendJsonRpcError(res, status, code, message) {
   res.status(status).json({
     jsonrpc: '2.0',
@@ -43,6 +45,7 @@ function sendJsonRpcError(res, status, code, message) {
   });
 }
 
+/** Resolve an existing streamable-HTTP session from the MCP session header. */
 function getSession(req) {
   const sessionId = req.headers['mcp-session-id'];
   return {
@@ -51,6 +54,10 @@ function getSession(req) {
   };
 }
 
+/**
+ * Create and connect a fresh MCP server/transport pair for an initialize request.
+ * Session cleanup happens through the transport close callback.
+ */
 async function createSession(req, res) {
   let transport;
   transport = new StreamableHTTPServerTransport({
@@ -71,6 +78,7 @@ async function createSession(req, res) {
   await transport.handleRequest(req, res, req.body);
 }
 
+// Liveness confirms the HTTP process is serving requests; it intentionally avoids Lark calls.
 app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -80,6 +88,13 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Readiness is configuration-only: it never makes a network call during a load-balancer probe.
+app.get('/ready', (_req, res) => {
+  const ready = Boolean(process.env.LARK_APP_ID?.trim() && process.env.LARK_APP_SECRET?.trim());
+  res.status(ready ? 200 : 503).json({ status: ready ? 'ready' : 'not_ready', service: 'supermama-lark-mcp', version: SERVER_INFO.version });
+});
+
+// POST initializes a session or carries an existing session RPC message.
 app.post('/mcp', async (req, res) => {
   try {
     const { sessionId, transport } = getSession(req);
@@ -102,12 +117,14 @@ app.post('/mcp', async (req, res) => {
     sendJsonRpcError(res, 400, -32000, 'Bad Request: initialization required');
   } catch (error) {
     logger.error('MCP request failed', { reason: errorSummary(error) });
+    void notifyError({ source: 'http:mcp', error });
     if (!res.headersSent) {
       sendJsonRpcError(res, 500, -32603, 'Internal server error');
     }
   }
 });
 
+// GET supports server-to-client stream handling only for an already initialized session.
 app.get('/mcp', async (req, res) => {
   const { transport } = getSession(req);
   if (!transport) {
@@ -117,6 +134,7 @@ app.get('/mcp', async (req, res) => {
   await transport.handleRequest(req, res);
 });
 
+// DELETE delegates session termination to the transport after validating the session exists.
 app.delete('/mcp', async (req, res) => {
   const { transport } = getSession(req);
   if (!transport) {
@@ -130,6 +148,7 @@ app.delete('/mcp', async (req, res) => {
 app.use((error, _req, res, _next) => {
   const status = error.status >= 400 && error.status < 600 ? error.status : 500;
   logger.error('HTTP request failed', { status, reason: error.type === 'entity.parse.failed' ? 'Invalid JSON request body' : errorSummary(error) });
+  if (status >= 500) void notifyError({ source: 'http:request', error });
   if (!res.headersSent) sendJsonRpcError(res, status, -32603, 'Request failed');
   else res.end();
 });
@@ -139,6 +158,7 @@ const listener = app.listen(port, () => {
 });
 listener.on('error', error => {
   logger.error('HTTP listen failed', { port, code: error.code || 'UNKNOWN', reason: errorSummary(error) });
+  void notifyError({ source: 'http:listen', error });
   process.exitCode = 1;
 });
 listener.on('close', () => logger.info('HTTP server closed'));

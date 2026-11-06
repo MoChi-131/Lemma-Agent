@@ -58,7 +58,7 @@ Stdio:
 npm.cmd run mcp:start
 ```
 
-The default HTTP port is `6688`, overridden by `PORT` in the environment or `.env`. The health endpoint is `http://localhost:6688/health`; the Streamable HTTP MCP endpoint is `http://localhost:6688/mcp`.
+The default HTTP port is `6688`, overridden by `PORT` in the environment or `.env`. Use `http://localhost:6688/health` for liveness, `http://localhost:6688/ready` for configuration readiness, and `http://localhost:6688/mcp` for Streamable HTTP MCP.
 
 After changing the port, restart the server and update the Codespace forwarded port, ChatGPT connection URL, or Tunnel target as applicable. Stdio does not use a port.
 
@@ -82,3 +82,9 @@ Colors are green for OK, red for ERROR, yellow for WARN and cyan for INFO. The d
 `LOG_COLOR=auto` enables colors in terminals. Use `LOG_COLOR=always` for PM2/Docker log
 viewers that support ANSI colors, or `LOG_COLOR=never` / `NO_COLOR=1` for plain text.
 Restart the service after changing its environment. Run `npm run test:logging` to check logging.
+
+## Operations
+
+- Run `npm.cmd run logs:prune` daily (for example, with cron, EventBridge, or a systemd timer). `LOG_RETENTION_DAYS=14` is the default and only files under `logs/` are eligible.
+- Set `ERROR_WEBHOOK_URL` to an HTTPS incident webhook to receive redacted, 60-second-deduplicated error alerts. Never use a URL that embeds credentials.
+- Configure your load balancer or monitor to check `/health`; use `/ready` before routing production MCP traffic after startup.

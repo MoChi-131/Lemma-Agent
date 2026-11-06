@@ -1,3 +1,4 @@
+// Tests literal Wiki search ranking, Unicode excerpts, and incomplete-coverage reporting.
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { getLarkWikiMetadataTool } = require("../../tools/lark/wiki/get-lark-wiki-metadata");

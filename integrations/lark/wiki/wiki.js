@@ -1,5 +1,7 @@
+// Wraps approved official-MCP Wiki calls with Lemma's validation and naming.
 const { officialMcp, TOOLS } = require('../official-mcp/client');
 
+/** Extract the Wiki node token from a user-supplied Lark Wiki URL. */
 function extractWikiToken(url) {
   const match = url.match(/\/wiki\/([^/?#]+)/);
 
@@ -10,6 +12,7 @@ function extractWikiToken(url) {
   return match[1];
 }
 
+/** Resolve one Wiki node to its Lark object metadata. */
 async function getWikiNode(wikiToken, { signal } = {}, { mcp = officialMcp } = {}) {
   const data = await mcp.call(TOOLS.wikiNode, { params: { token: wikiToken } }, { signal });
   if (!data.node || typeof data.node.obj_token !== 'string' || typeof data.node.obj_type !== 'string') {
@@ -18,6 +21,7 @@ async function getWikiNode(wikiToken, { signal } = {}, { mcp = officialMcp } = {
   return data.node;
 }
 
+/** Read and normalize one validated page of direct children for a Wiki node. */
 async function listWikiChildren({
   spaceId,
   parentNodeToken,

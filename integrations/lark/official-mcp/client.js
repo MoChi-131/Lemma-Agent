@@ -1,3 +1,4 @@
+// Owns the single private stdio connection to the pinned official Lark MCP package.
 require('dotenv').config({ quiet: true });
 const path = require('node:path');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
@@ -7,16 +8,19 @@ const { TOOLS } = require('./constants');
 
 const TIMEOUT_MS = 30000;
 
+/** Create a sanitized internal error without retaining upstream payloads. */
 function failure(message, code = 'LARK_MCP_FAILED') {
   return Object.assign(new Error(message), { code });
 }
 
+/** Preserve only a numeric Lark code that is safe to include in operational logs. */
 function upstreamFailure(message, data) {
   const error = failure(message);
   if (Number.isInteger(data?.code)) error.larkCode = data.code;
   return error;
 }
 
+/** Normalize official MCP result shapes and reject malformed/error envelopes. */
 function parseResult(result) {
   if (result?.isError) {
     let detail;
@@ -40,6 +44,7 @@ function parseResult(result) {
   return data;
 }
 
+/** Let a caller cancel its wait without cancelling the shared connection startup. */
 function waitWithSignal(promise, signal) {
   signal?.throwIfAborted();
   if (!signal) return promise;
@@ -50,6 +55,7 @@ function waitWithSignal(promise, signal) {
   });
 }
 
+/** Create a lazy, shared official-MCP client with fixed tools and bounded requests. */
 function createOfficialMcpClient({
   env = process.env,
   makeClient = () => new Client({ name: 'lemma-lark-reader', version: '1.1.0' }),
@@ -61,6 +67,7 @@ function createOfficialMcpClient({
   let connecting;
   let closing;
 
+  /** Start the child process once and verify its discovered tools match the allowlist. */
   async function connect() {
     if (closing) await closing;
     if (connection) return connection;
@@ -112,6 +119,7 @@ function createOfficialMcpClient({
     finally { connecting = undefined; }
   }
 
+  /** Call one allowlisted official tool with caller cancellation and a hard deadline. */
   async function call(name, args, { signal } = {}) {
     if (!Object.values(TOOLS).includes(name)) throw failure('This official Lark MCP tool is not allowed.');
     const deadline = AbortSignal.timeout(timeoutMs);
@@ -143,6 +151,7 @@ function createOfficialMcpClient({
     }
   }
 
+  /** Close the shared child process during server shutdown. */
   async function close() {
     if (closing) return closing;
     closing = (async () => {

@@ -1,7 +1,11 @@
 const { AsyncLocalStorage } = require('node:async_hooks');
 
-// The pinned official handlers ignore MCP's extra.signal. Keep the signal in
-// async request context so their SDK/Axios calls can still abort at the socket.
+/**
+ * Add cancellation/deadline propagation to the pinned official MCP's HTTP clients.
+ * The upstream handlers ignore MCP's `extra.signal`, so this stores it in async
+ * request context and attaches it to Axios requests at the socket layer.
+ * @param {{McpServer: Function, httpInstances: object[], timeoutMs?: number}} options official internals to patch.
+ */
 function installHttpLifecycle({ McpServer, httpInstances, timeoutMs = 30000 }) {
   const context = new AsyncLocalStorage();
   const original = McpServer.prototype.tool;

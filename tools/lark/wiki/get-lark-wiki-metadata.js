@@ -1,6 +1,12 @@
 const { crawlLarkWikiTreeTool } = require("./crawl-lark-wiki-tree");
 const { flattenWikiMetadata } = require("../../../integrations/lark/wiki/wiki-metadata");
 const { validateCrawlInput } = require("../../../integrations/lark/wiki/wiki-tree");
+/**
+ * Return a flat, metadata-only Wiki inventory derived from the bounded tree crawl.
+ * @param {object} input Wiki URL and traversal limits.
+ * @param {object} deps injectable crawl tool for tests.
+ * @returns {Promise<object>} root, flat nodes, and crawl diagnostics.
+ */
 async function getLarkWikiMetadataTool(input = {}, { crawl = crawlLarkWikiTreeTool } = {}) {
   validateCrawlInput(input);
   const inventory = await crawl(input);

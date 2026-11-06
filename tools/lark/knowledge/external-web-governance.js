@@ -6,7 +6,12 @@ const {
   readExternalWhitelist,
 } = require('../../../integrations/lark/knowledge/knowledge-registry');
 
-/** Return the approved domains that may be supplied to an external web search. */
+/**
+ * Return deduplicated domains approved for external web search.
+ * @param {{whitelistUrl?: string, query?: string}} input optional approved-domain table URL.
+ * @param {object} deps injectable whitelist reader for tests.
+ * @returns {Promise<object>} approved whitelist records, without executing a web search.
+ */
 async function getApprovedWebDomains(input = {}, deps = {}) {
   const readWhitelist = deps.readWhitelist || readExternalWhitelist;
   const rows = await readWhitelist({ whitelistUrl: input.whitelistUrl }, deps);
@@ -30,7 +35,13 @@ async function getApprovedWebDomains(input = {}, deps = {}) {
   };
 }
 
-/** Fail closed: only HTTPS URLs on an approved host or real subdomain pass. */
+/**
+ * Check every requested URL against the approved-domain whitelist.
+ * Fails closed: only HTTPS URLs on an approved host or real subdomain pass.
+ * @param {{urls: string[], whitelistUrl?: string}} input URLs to evaluate.
+ * @param {object} deps injectable whitelist reader for tests.
+ * @returns {Promise<object>} per-URL allow/block decisions and aggregate counts.
+ */
 async function checkExternalUrls(input, deps = {}) {
   const whitelist = await getApprovedWebDomains(input, deps);
   const results = input.urls.map(url => authorizeUrl(url, whitelist.approved_domains));
@@ -46,6 +57,7 @@ async function checkExternalUrls(input, deps = {}) {
   };
 }
 
+/** Return a non-throwing authorization decision for one untrusted URL. */
 function authorizeUrl(value, approvedDomains) {
   let parsed;
   try {
@@ -73,6 +85,7 @@ function authorizeUrl(value, approvedDomains) {
   };
 }
 
+/** Build a consistently shaped denial result so callers need no error special cases. */
 function blockedResult(url, documentDomain, reason) {
   return {
     url,
