@@ -11,7 +11,7 @@ const { registerWikiTreeTool } = require('../registrations/register-wiki-tree-to
 
 const SERVER_INFO = {
   name: 'supermama-lark',
-  version: '1.1.0',
+  version: require('../../package.json').version,
 };
 
 /**
